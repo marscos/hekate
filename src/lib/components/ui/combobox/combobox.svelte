@@ -6,7 +6,6 @@
 	import { Button } from '$lib/components/ui/button/index.js'
 	import { cn } from '$lib/utils.js'
 	import { tick } from 'svelte'
-	import ScrollArea from '../scroll-area/scroll-area.svelte'
 	import type { SimplifiedPlaylist } from '@spotify/web-api-ts-sdk'
 
 	export let items: SimplifiedPlaylist[] = []

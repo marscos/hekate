@@ -1,3 +1,4 @@
+import type { Key, Mode } from '$lib/camelot'
 import {
 	SpotifyApi,
 	type AccessToken,
@@ -13,7 +14,10 @@ export const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID
 
 const STORAGE_KEY = 'spotify_token'
 
-interface AnalyzedTrack extends Track, AudioFeatures {}
+export interface AnalyzedTrack extends Track, Omit<AudioFeatures, 'key' | 'mode'> {
+	key: Key
+	mode: Mode
+}
 
 const generateRandomString = (length: number) => {
 	const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
@@ -167,7 +171,7 @@ const getAnalyzedTracks = async (tracks: Track[]): Promise<AnalyzedTrack[]> => {
 			})
 		)
 	).flat()
-	return tracks.map((track, i) => ({ ...track, ...audioFeatures[i] }))
+	return tracks.map((track, i) => ({ ...track, ...audioFeatures[i] }) as AnalyzedTrack)
 }
 
 function splitIntoChunks<T>(arr: T[], chunkSize: number): T[][] {
