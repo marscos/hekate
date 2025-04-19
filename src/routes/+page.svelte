@@ -20,14 +20,9 @@
 				{#if selectedPlaylist}
 					{#await (async () => {
 						const playlistTracks = await getPlaylistTracks(selectedPlaylist)
-						return Promise.all(playlistTracks.map(async (track) => {
-								const response = await fetch(`/api/tunebat?trackId=${track.id}`)
-								if (!response.ok) {
-									throw new Error('Failed to fetch Tunebat track data')
-								}
-								const tunebatData = await response.json()
-								return { ...track, ...tunebatData }
-							}))
+						const response = fetch('/api/tunebat?' + new URLSearchParams(playlistTracks.map( (track) => ['trackId', track.id] )))
+						const tunebatData = await (await response).json()
+						return playlistTracks.map((track, i) => ({ ...track, ...tunebatData[i] }))
 					})()}
 						<LoaderCircle class="h-20 w-20"></LoaderCircle>
 					{:then tracks}

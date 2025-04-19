@@ -15,7 +15,7 @@
 	export let tracks: MixTrack[]
 
 	let graph: GraphData<MixTrack, GraphInputLink> = {
-		nodes: tracks,
+		nodes: tracks.sort((a, b) => a.key.number - b.key.number),
 		links: tracks.flatMap((track, _, arr) => {
 			return arr
 				.filter((t) => t.id !== track.id && isWheelNeighbour(track.key, t.key))
@@ -34,6 +34,8 @@
 	const nodeLabel = (mt: MixTrack) => mt.name
 	const nodeSubLabel = (mt: MixTrack) => `${mt.key.number}${mt.key.letter}`
 	const nodeStroke = (mt: MixTrack) => camelotColor(mt.key)
+	const layoutNodeGroup = (mt: MixTrack) => mt.key.number
+	const layoutParallelNodeSubGroup = (mt: MixTrack) => (mt.key.letter === 'A' ? 1 : 2)
 
 	let className = ''
 	export { className as class }
@@ -43,11 +45,15 @@
 	<VisSingleContainer data={graph} class="h-full">
 		<VisGraph
 			linkNeighborSpacing={0}
+			layoutType="parallel"
+			layoutParallelGroupSpacing={128}
 			{nodeSize}
 			{nodeShape}
 			{nodeLabel}
 			{nodeStroke}
 			{nodeSubLabel}
+			{layoutNodeGroup}
+			{layoutParallelNodeSubGroup}
 			nodeStrokeWidth={6}
 		/>
 	</VisSingleContainer>
