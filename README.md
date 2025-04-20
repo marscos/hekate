@@ -1,6 +1,15 @@
 # Hekate
 
-Web app for DJ mixes. Built with SvelteKit.
+Web app for DJ mixes. Built with SvelteKit. The app visualizes playlists as a graph where tracks are represented by nodes. Tracks are linked when they are neighbors in the Camelot wheel, making it easier to identify compatible tracks for mixing.
+
+## Environment Variables
+
+The following environment variables are required to run the app:
+
+- `VITE_SPOTIFY_CLIENT_ID`: Your Spotify API client ID.
+- `VITE_REDIRECT_TARGET`: The redirect URI for Spotify authentication.
+
+Ensure these variables are set in a `.env` file in the root of the project.
 
 ## Developing
 
