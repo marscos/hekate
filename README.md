@@ -8,6 +8,9 @@ A live, offline next-track assistant for DJs using [Mixxx](https://mixxx.org). h
 
 Built with Tauri 2, SvelteKit (Svelte 5), shadcn-svelte and unovis.
 
+[hekate-demo.webm](https://github.com/user-attachments/assets/66f36d12-3000-48e0-bd93-b7f3e3b2f7cd)
+
+
 ## Development
 
 ```bash
