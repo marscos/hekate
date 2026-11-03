@@ -96,7 +96,7 @@ Releases are built by GitHub Actions and published from [Releases](https://githu
 ### Making a release
 
 1. Bump the version in `package.json` and `src-tauri/Cargo.toml` (run `cargo check --manifest-path src-tauri/Cargo.toml` to update `Cargo.lock`), commit, and push to `main`. `tauri.conf.json` reads its version from `package.json`.
-2. Check the versions agree, then tag and push:
+2. Check the versions agree, then tag and push. Push the commit to a branch first: GitHub doesn't start the workflow for a tag whose commit isn't on any branch on GitHub.
 
    ```bash
    scripts/check-version.sh v0.2.0

@@ -25,7 +25,7 @@
 - [x] 3.2 Create `.github/workflows/release.yml` with the `v*` tag trigger, top-level `permissions: contents: read`, and the `verify` job (D1, D6). The job runs the version check from 2.2 against `GITHUB_REF_NAME`, `pnpm install --frozen-lockfile`, `pnpm test`, `pnpm check`, and `cargo test --manifest-path src-tauri/Cargo.toml` (with the Linux WebKit dependencies installed). Verify: `actionlint` reports no errors, and every third-party action is pinned to a commit SHA.
 - [x] 3.3 Add the `create-release` job (`needs: verify`, `contents: write`). It builds the notes from the header (with `<version>` filled in) plus the generate-notes API output, creates a draft through the releases API, and outputs the release id (D5). Verify: `actionlint` passes and the job's commands read only the tag and the header file.
 - [x] 3.4 Add the `build` matrix job (`needs: create-release`, `contents: write`) using `tauri-apps/tauri-action` with the runners and args from D2, uploading to the draft's release id, with the updater JSON and signatures off. Install both macOS Rust targets for the universal build. Verify: `actionlint` passes, and the workflow references no repository secrets.
-- [ ] 3.5 Add the README Download section (D7):
+- [x] 3.5 Add the README Download section (D7):
   - a link to Releases
   - a platform table with Windows and Linux marked UNVERIFIED
   - the macOS first-launch steps (once per new version), the "not notarized by Apple" note, and the per-launch data-access prompt for sandboxed Mixxx
@@ -33,13 +33,13 @@
   - a sentence saying updates are manual
 
   Finish the Releasing section with the bump, tag, review and publish steps, and with re-running a failed platform job. Verify: following the Releasing steps as written produces the dry run in 3.6.
-- [ ] 3.6 Dry-run the workflow with a throwaway version. On a branch, bump `package.json` and `Cargo.toml` to `0.1.0-rc.1`, then push tag `v0.1.0-rc.1`. Verify:
+- [x] 3.6 Dry-run the workflow with a throwaway version. On a branch, bump `package.json` and `Cargo.toml` to `0.1.0-rc.1`, then push tag `v0.1.0-rc.1`. Verify:
   - a draft release appears with `hekate_0.1.0-rc.1_universal.dmg`, the Windows `-setup.exe`, the `.AppImage` and the `.deb`
   - its notes start with the header, followed by the generated notes
   - the release is not visible when logged out
   - pushing a tag `v9.9.9` on the same commit fails in `verify`, names the mismatched versions, and creates no draft
 
-  Afterwards, delete both drafts, both tags and the branch.
+  Afterwards, delete both drafts, both tags and the branch. (Done: run 41696041743 built all four assets, and the CI dmg is universal and passes `codesign --verify --deep --strict`. The tag only triggered the workflow once its commit was on a pushed branch, so the README now says to push the commit before the tag.)
 
 ## 4. First release
 
