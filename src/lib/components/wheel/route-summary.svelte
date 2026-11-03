@@ -2,7 +2,7 @@
   // Request target, route steps and estimate (spec: request-routing).
   import TrackSearch from "$lib/components/top-bar/track-search.svelte";
   import { Button } from "$lib/components/ui/button";
-  import { MOVE_LABEL } from "$lib/engine/camelot";
+  import MoveLabel from "$lib/components/glossary/move-label.svelte";
   import type { RouteResult } from "$lib/engine/router";
   import { formatBpm, formatGap, formatKey, formatMinutes, formatTolerance, trackName } from "$lib/format";
   import type { Track } from "$lib/library/types";
@@ -65,7 +65,7 @@
                 <span class="w-8 font-mono font-semibold">{formatKey(t.camelot)}</span>
                 <span class="font-mono text-xs tabular-nums">{formatBpm(t.bpm)}</span>
                 <span class="font-mono text-xs text-muted-foreground tabular-nums">{formatGap(step.gapPct)}</span>
-                <span class="truncate text-xs text-muted-foreground">{MOVE_LABEL[step.move]}</span>
+                <MoveLabel move={step.move} side="left" class="truncate text-xs text-muted-foreground" />
               </div>
               <div class="truncate pl-6 text-xs">{trackName(t)}</div>
             </li>
