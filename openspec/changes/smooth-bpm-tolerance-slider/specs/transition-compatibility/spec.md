@@ -5,6 +5,10 @@
 ### Requirement: Responsive tolerance control
 While the user drags the BPM tolerance control, the control and its displayed value SHALL follow the pointer without lagging behind it. Suggestions and the compass SHALL keep updating during the drag using the most recent value, skipping intermediate values rather than processing every step in turn. A route to a request SHALL keep its previous tolerance until the drag ends.
 
+#### Scenario: Track stays put as the value changes
+- **WHEN** the displayed tolerance changes from ±5% to ±5.5%
+- **THEN** the slider track keeps its position and length, so the thumb stays under the pointer
+
 #### Scenario: Dragging across the range
 - **WHEN** the user drags the tolerance control from ±6% to ±10% in one continuous motion
 - **THEN** the control and the displayed tolerance move with the pointer through the intermediate values, without jumping in bursts

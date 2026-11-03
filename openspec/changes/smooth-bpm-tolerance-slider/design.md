@@ -25,6 +25,14 @@ See proposal.md (Why) for the symptom. The relevant current state:
 
 ## Decisions
 
+### D0. Fixed widths for the readout and the pool picker
+The "±x%" readout gets `shrink-0` alongside its existing `w-10`. Today it is a shrinkable flex item, so it collapses to its text (25 px for "±5%", 36 px for "±5.5%") and the slider track's length jumps by ~11 px on every half step. That moves the thumb under the pointer and is the stutter users see. At `text-xs` monospace the widest value, "±9.5%", is 36 px, so `w-10` (40 px) fits every value.
+
+The pool picker gets a fixed width with the crate name truncated (`truncate`, the full label in `title`) and the pool size kept visible. Its width ranged from 118 px ("Crate · 154") to 171 px ("Whole library · 620"), and because the now-playing area is the top bar's only flexible item, every change pushed the controls to its left sideways.
+
+- **Why**: layout shift was the cause the user actually perceived; the update-cost work (D1–D5) keeps the control responsive once it stays still.
+- **Alternative**: right-align the readout in a container sized by its widest value. Same result with more markup.
+
 ### D1. The slider owns a local draft value
 The top bar keeps a local `draft` (in percent) bound to the slider, and the readout shows `draft`. When no drag is in progress, `draft` follows `session.tolerance`, so the "widen tolerance" actions and the value restored at launch still move the thumb.
 

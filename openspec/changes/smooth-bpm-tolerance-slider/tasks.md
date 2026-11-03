@@ -13,8 +13,10 @@
 ## 3. Top-bar slider
 
 - [x] 3.1 Bind the slider and the "±x%" readout to a local draft value that re-syncs from `session.tolerance` whenever no drag is in progress (design D1). Send `onValueChange` through the coalescing helper as unsaved applies. On `onValueCommit`, cancel any waiting update and call `setTolerance` so the final value is applied and saved (D3, D4). Cancel the helper on unmount. Verify with a component test: a commit saves the value and updates the readout, and an external `setTolerance` (as from "widen") moves the readout.
+- [x] 3.3 Give the "±x%" readout a fixed width that cannot shrink (design D0). Verify in the browser pane that the slider track's left edge and width are identical for every value from ±1% to ±10%.
+- [x] 3.4 Give the pool picker a fixed width, truncating the name with the full label on hover and keeping the pool size visible (design D0). Verify in the browser pane that switching between the whole library, a short crate name and two crates leaves the search, Follow toggle and slider in place, and that a long crate name is truncated with its full name in the tooltip.
 - [ ] 3.2 Manual check in `pnpm tauri dev`, with a request target set and the compass visible: dragging across the full range keeps the thumb and readout under the pointer with no bursts, the list and compass keep updating during the drag, releasing settles every view on the released value, a single arrow-key step updates at once, and the released value survives a restart. Repeat once with no request set. Run `pnpm test` and `pnpm check` and confirm both pass.
 
 ## Workflow follow-up
 
-- Archive `hekate-live-mvp` before archiving this change, so the `transition-compatibility` delta applies on top of the main spec.
+- `hekate-live-mvp` is archived, so the `transition-compatibility` and `track-pool` deltas apply on top of the main specs.

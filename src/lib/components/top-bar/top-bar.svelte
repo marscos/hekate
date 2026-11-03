@@ -80,7 +80,7 @@
       onValueCommit={onToleranceCommit}
       aria-label="BPM tolerance"
     />
-    <span class="w-10 text-right font-mono text-xs tabular-nums" data-testid="tolerance">{formatTolerance(draft / 100)}</span>
+    <span class="w-10 shrink-0 text-right font-mono text-xs tabular-nums" data-testid="tolerance">{formatTolerance(draft / 100)}</span>
   </div>
 
   <PoolPicker pool={session.pool} crates={session.library.library?.crates ?? []} />
