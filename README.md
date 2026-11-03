@@ -1,54 +1,52 @@
-# Hekate
+# hekate
 
-Web app to help DJs identify tracks to mix together. The app represents a playlist as a graph where tracks are represented by nodes. Tracks are linked when they are neighbors in the Camelot wheel, making it easier to identify compatible tracks for mixing.
+A live, offline next-track assistant for DJs using [Mixxx](https://mixxx.org). hekate reads your Mixxx library and shows, for the track that is playing:
 
-## Features
+- **Next up**: compatible tracks ranked by harmonic risk and BPM gap.
+- **Compass**: how each possible move changes the atmosphere (darker or brighter, safe or risky, which way around the Camelot wheel).
+- **Wheel map**: a route of smooth transitions to a requested track.
 
-![image](https://github.com/user-attachments/assets/f2277340-ac38-4250-8e62-f17bc508b301)
+Built with Tauri 2, SvelteKit (Svelte 5), shadcn-svelte and unovis.
 
-- **Spotify Authentication**: The app authenticates a Spotify user to fetch their playlists through the [Spotify API](https://developer.spotify.com/documentation/web-api/).
-- **Audio Features from Tunebat**: Since Spotify has deprecated its Audio Features API endpoint, audio features are currently fetched from [Tunebat](https://tunebat.com/)'s API, which was reverse-engineered and proxied by an API route in the app, trying to leverage rate limits through a bottleneck.
-- **Playlist Graph Representation**: Once a playlist is selected, its tracks' audio features are requested to build a graph where:
-  - **Nodes**: Represent the tracks in the playlist.
-  - **Edges**: Are based on Camelot wheel neighborhood.
-- **Graph Rendering**: Graphs are rendered using [unovis](https://unovis.dev/).
-- **UI Components**: Built on top of [shadcn-svelte](https://github.com/huntabyte/shadcn-svelte).
-
-## Setting up
-### Environment Variables
-
-The following environment variables are required to run the app:
-
-- `VITE_SPOTIFY_CLIENT_ID`: Your Spotify API client ID.
-- `VITE_REDIRECT_TARGET`: The redirect URI for Spotify authentication.
-
-### Developing
-
-Once you've installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Development
 
 ```bash
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+pnpm install
+pnpm tauri dev      # run the desktop app
+pnpm test           # unit tests (Vitest)
+pnpm check          # type checks
+cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-### Building
+`pnpm dev` alone serves the UI in a normal browser at http://127.0.0.1:1420 with a synthetic library standing in for the Rust backend (development only). Add `?mock=notice`, `?mock=denied` or `?mock=notfound` to see the first-run screens, and call `__hekateMock.play(trackId)` in the console to simulate Mixxx starting a track.
 
-To create a production version of the app:
+## Your Mixxx library
 
-```bash
-npm run build
-```
+hekate only ever **reads** Mixxx's database (`mixxxdb.sqlite`). It opens it read-only, works while Mixxx is running, and never writes to it or creates files next to it.
 
-You can preview the production build with `npm run preview`.
+At startup it looks in these places, in order:
 
-> To deploy the app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+| Platform | Location |
+|---|---|
+| macOS (Mixxx from mixxx.org, sandboxed) | `~/Library/Containers/org.mixxx.mixxx/Data/Library/Application Support/Mixxx/` |
+| macOS (other builds) | `~/Library/Application Support/Mixxx/` |
+| Linux | `~/.mixxx/` |
+| Windows | `%LOCALAPPDATA%\Mixxx\` |
 
-## Feature Roadmap
+A file you pick yourself (folder button in the top bar, or **Choose file…** on the start screen) is remembered and tried first on the next launch. Use the reload button after editing crates or analysing tracks in Mixxx.
 
-- **Additional Import Options**: Enable importing track collections from sources other than Spotify playlists, such as Mixxx metadata files.
-- **Local Caching**: Implement some form of local storage for track metadata to improve experience and reduce redundant API calls.
-- **Enhanced Graph Edges**: Include BPM difference as a factor in edge weights for more accurate graph representation.
-- **Desktop App Release**: Package the app as a desktop application using [Tauri](https://tauri.app/), allowing it to run on major desktop platforms without a need for hosting.
-- **Improved Browsing**: Enhance the overall track browsing experience with better graph layout, track listing components, etc.
+Tracks with no detected key or BPM are left out of suggestions, the compass and routing. The top bar shows how many.
+
+### macOS permission prompt
+
+The sandboxed Mixxx build keeps its library inside its own app container. The first time hekate reads it, macOS asks whether hekate may **access data from other apps**. hekate explains this before the prompt appears. If you choose **Don't Allow**, you can allow it later in System Settings › Privacy & Security, or pick the `mixxxdb.sqlite` file manually instead.
+
+## Offline by design
+
+hekate works with no network connection and never makes network requests: no fonts, icons, updates, telemetry or crash reports are fetched or sent.
+
+- All assets (fonts, icons, styles) are bundled with the app. Never load anything from a CDN or remote URL.
+- The webview runs under a strict Content Security Policy (`src-tauri/tauri.conf.json`) that only allows the app's own origin. Remote resources are blocked even if one is referenced by mistake.
+- No network-capable Tauri plugins are installed, and the window's capabilities are limited to what hekate itself uses.
+
+The CSP is enforced in built binaries (`pnpm tauri build`, or `pnpm tauri build --debug --no-bundle` for a quick debug build). `pnpm tauri dev` loads the Vite dev server directly and doesn't enforce it, so check CSP behaviour in a build.

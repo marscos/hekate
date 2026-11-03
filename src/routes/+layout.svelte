@@ -1,9 +1,7 @@
 <script lang="ts">
-	import Header from '$lib/components/ui/header/header.svelte';
-	import '../app.css';
+  import "../app.css";
+
+  let { children } = $props();
 </script>
 
-<Header></Header>
-<slot></slot>
-
-<style></style>
+{@render children()}
