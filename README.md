@@ -79,6 +79,29 @@ The sandboxed Mixxx build keeps its library inside its own app container. When h
 
 hekate isn't signed with an Apple Developer ID, so macOS doesn't remember your answer and asks again each time you open hekate. If you choose **Don't Allow**, you can allow it later in System Settings › Privacy & Security, or pick the `mixxxdb.sqlite` file manually instead.
 
+## Album covers
+
+The compass shows the cover of the hovered or selected track in its details card, and the now-playing track's cover at its centre. hekate uses the cover Mixxx found for each track: the picture embedded in the audio file, or the image file (such as `cover.jpg`) Mixxx associated with it. Tracks Mixxx found no cover for show none.
+
+Until a cover is ready, hekate shows its main colour, as recorded by Mixxx. If a cover can't be read (the file is missing, its drive is unplugged, macOS refused access, or the image is damaged), the colour stays and no error is shown.
+
+hekate reads audio and image files read-only and never changes them or their folders. It keeps a small copy of each cover it has shown in its own cache folder (on macOS, `~/Library/Caches/com.marscos.hekate/covers/`), so covers you've seen before still appear with the drive unplugged. Deleting that folder is safe: hekate reads the covers again when needed.
+
+### macOS file-access prompts
+
+Reading covers means opening your track files. Depending on where they are, macOS may ask whether hekate may access:
+
+- files on a **removable volume** (such as a USB drive)
+- files on a **network volume**
+- files in your **Desktop** folder
+- files in your **Documents** folder
+- files in your **Downloads** folder
+- files in **iCloud Drive**
+
+So that these prompts appear while you set up, not in the middle of a set, hekate reads one track file from each drive and each top-level folder of your home folder in the background straight after the library loads or reloads. The library, suggestions, compass and routing work normally while a prompt waits for your answer.
+
+hekate doesn't explain these prompts beforehand and never asks for Full Disk Access. If you choose **Don't Allow**, covers from that location show only their colour. To allow access later, open **System Settings › Privacy & Security › Files and Folders**, find **hekate** and turn on the locations you want, then reload the library. macOS may ask again after you install a new version of hekate.
+
 ## Offline by design
 
 hekate works with no network connection and never makes network requests: no fonts, icons, updates, telemetry or crash reports are fetched or sent.

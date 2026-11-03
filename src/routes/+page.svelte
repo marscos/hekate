@@ -21,6 +21,8 @@
     const lib = session.library.library;
     if (!lib) return;
     untrack(() => {
+      // Covers may have changed in Mixxx, and failures may now succeed.
+      session.covers.clear();
       session.pool.prune(lib);
       const latest = lib.histories[0];
       if (latest) session.nowPlaying.applyHistory({ playlistId: latest.playlistId, entries: latest.entries });
@@ -57,6 +59,7 @@
             suggestions={session.suggestions}
             tracksById={session.library.tracksById}
             selectedId={session.selectedId}
+            cover={(t) => session.covers.cover(t)}
             onSelect={(id) => (session.selectedId = id)}
             onNowPlaying={(id) => session.setNowPlaying(id)}
           />

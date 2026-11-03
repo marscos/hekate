@@ -1,11 +1,14 @@
 //! Loading tracks, crates and history from a Mixxx database.
 
-use std::path::Path;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 
-use rusqlite::Connection;
+use rusqlite::types::ValueRef;
+use rusqlite::{Connection, Row};
 use serde::Serialize;
 
 use super::camelot::{self, Camelot};
+use crate::covers::{CoverKind, CoverSource, TrackFiles};
 use super::db::{self, with_retry};
 use super::LibraryError;
 
@@ -25,6 +28,10 @@ pub struct Track {
     /// Has a known key and a positive BPM, so it can take part in suggestions,
     /// the compass and routing.
     pub usable: bool,
+    /// The cover's dominant colour as `#rrggbb`, when Mixxx recorded a cover.
+    pub cover_color: Option<String>,
+    /// Identifies the cover image; `None` when there's no cover hekate can read.
+    pub cover_digest: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -63,12 +70,15 @@ pub struct Library {
     pub crates: Vec<Crate>,
     /// History playlists, newest first.
     pub histories: Vec<History>,
+    /// File locations and cover sources. Never sent to the frontend.
+    #[serde(skip)]
+    pub files: TrackFiles,
 }
 
 pub fn load(path: &Path) -> Result<Library, LibraryError> {
     let conn = db::open(path)?;
     let err = |e| db::read_error(path, e);
-    let tracks = with_retry(|| load_tracks(&conn)).map_err(err)?;
+    let (tracks, files) = with_retry(|| load_tracks(&conn)).map_err(err)?;
     let crates = with_retry(|| load_crates(&conn)).map_err(err)?;
     let histories = with_retry(|| load_histories(&conn)).map_err(err)?;
     Ok(Library {
@@ -77,20 +87,56 @@ pub fn load(path: &Path) -> Result<Library, LibraryError> {
         tracks,
         crates,
         histories,
+        files,
     })
 }
 
-fn load_tracks(conn: &Connection) -> rusqlite::Result<Vec<Track>> {
-    let mut stmt = conn.prepare(
-        "SELECT id, COALESCE(artist, ''), COALESCE(title, ''), COALESCE(duration, 0), COALESCE(bpm, 0), COALESCE(key_id, 0)
-         FROM library WHERE COALESCE(mixxx_deleted, 0) = 0 ORDER BY id",
-    )?;
-    let rows = stmt.query_map([], |r| {
+/// Mixxx's cover columns, read only when present (design D2).
+const COVER_COLUMNS: [&str; 5] = ["coverart_type", "coverart_location", "coverart_hash", "coverart_digest", "coverart_color"];
+const COVER_EMBEDDED: i64 = 1;
+const COVER_FILE: i64 = 2;
+
+fn column_names(conn: &Connection, table: &str) -> rusqlite::Result<HashSet<String>> {
+    conn.prepare(&format!("PRAGMA table_info({table})"))?.query_map([], |r| r.get(1))?.collect()
+}
+
+fn load_tracks(conn: &Connection) -> rusqlite::Result<(Vec<Track>, TrackFiles)> {
+    let library = column_names(conn, "library")?;
+    let locations = column_names(conn, "track_locations")?;
+    let cover = |c: &str| if library.contains(c) { format!("l.{c}") } else { "NULL".into() };
+    let joined = library.contains("location") && locations.contains("location");
+    let (location, directory, from) = if joined {
+        let directory = if locations.contains("directory") { "tl.directory" } else { "NULL" };
+        ("tl.location", directory, "library l LEFT JOIN track_locations tl ON tl.id = l.location")
+    } else {
+        ("NULL", "NULL", "library l")
+    };
+    let sql = format!(
+        "SELECT l.id, COALESCE(l.artist, ''), COALESCE(l.title, ''), COALESCE(l.duration, 0), COALESCE(l.bpm, 0),
+                COALESCE(l.key_id, 0), {}, {location}, {directory}
+         FROM {from} WHERE COALESCE(l.mixxx_deleted, 0) = 0 ORDER BY l.id",
+        COVER_COLUMNS.map(cover).join(", "),
+    );
+    let mut files = TrackFiles::default();
+    let mut stmt = conn.prepare(&sql)?;
+    let mut rows = stmt.query([])?;
+    let mut tracks = Vec::new();
+    while let Some(r) = rows.next()? {
+        let id: i64 = r.get(0)?;
         let bpm: f64 = r.get(4)?;
         let key_id: i64 = r.get(5)?;
         let camelot = camelot::from_key_id(key_id);
-        Ok(Track {
-            id: r.get(0)?,
+        let audio_path = text(r, 11).filter(|p| !p.is_empty()).map(PathBuf::from);
+        let (cover_color, source) = cover_of(r, audio_path.as_deref());
+        let cover_digest = source.as_ref().map(|s| s.key.clone());
+        if let Some(path) = audio_path {
+            files.paths.insert(id, path);
+        }
+        if let Some(source) = source {
+            files.covers.insert(id, source);
+        }
+        tracks.push(Track {
+            id,
             artist: r.get(1)?,
             title: r.get(2)?,
             duration: r.get(3)?,
@@ -98,9 +144,53 @@ fn load_tracks(conn: &Connection) -> rusqlite::Result<Vec<Track>> {
             key_id,
             camelot,
             usable: camelot.is_some() && bpm > 0.0,
-        })
-    })?;
-    rows.collect()
+            cover_color,
+            cover_digest,
+        });
+    }
+    Ok((tracks, files))
+}
+
+// Cover columns are decorative, so a value of an unexpected type reads as
+// missing instead of failing the load.
+fn int(r: &Row, i: usize) -> Option<i64> {
+    r.get_ref(i).ok()?.as_i64_or_null().ok().flatten()
+}
+
+fn text(r: &Row, i: usize) -> Option<String> {
+    r.get_ref(i).ok()?.as_str_or_null().ok().flatten().map(str::to_owned)
+}
+
+fn bytes(r: &Row, i: usize) -> Option<Vec<u8>> {
+    match r.get_ref(i).ok()? {
+        ValueRef::Blob(b) | ValueRef::Text(b) if !b.is_empty() => Some(b.to_vec()),
+        _ => None,
+    }
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// The cover colour and source from columns 6–10 and the track's directory (column 12) (design D1).
+fn cover_of(r: &Row, audio_path: Option<&Path>) -> (Option<String>, Option<CoverSource>) {
+    let kind = int(r, 6).unwrap_or(0);
+    if kind != COVER_EMBEDDED && kind != COVER_FILE {
+        return (None, None);
+    }
+    let color = int(r, 10).map(|c| format!("#{:06x}", c & 0xff_ffff));
+    let key = bytes(r, 9).map(|d| hex(&d)).or_else(|| int(r, 8).filter(|&h| h != 0).map(|h| format!("{h:x}")));
+    let source = audio_path.zip(key).and_then(|(audio, key)| {
+        let kind = if kind == COVER_EMBEDDED {
+            CoverKind::Embedded
+        } else {
+            let location = text(r, 7).filter(|l| !l.is_empty())?;
+            let directory = text(r, 12).map(PathBuf::from).or_else(|| audio.parent().map(Path::to_path_buf))?;
+            CoverKind::File(directory.join(location))
+        };
+        Some(CoverSource { kind, audio_path: audio.to_path_buf(), key })
+    });
+    (color, source)
 }
 
 fn load_crates(conn: &Connection) -> rusqlite::Result<Vec<Crate>> {
@@ -206,6 +296,68 @@ mod tests {
         assert_eq!(ids, [5, 3]);
         let latest: Vec<_> = lib.histories[0].entries.iter().map(|e| (e.track_id, e.played_at.as_str())).collect();
         assert_eq!(latest, [(3, "2026-10-16 21:00:10"), (1, "2026-10-16 21:04:30")]);
+    }
+
+    #[test]
+    fn cover_colour_and_digest_are_formatted() {
+        let (_dir, lib) = loaded();
+        let alpha = track(&lib, 1).unwrap();
+        assert_eq!(alpha.cover_color.as_deref(), Some("#123456"));
+        assert_eq!(alpha.cover_digest.as_deref(), Some("00ff10ab"));
+        assert_eq!(track(&lib, 2).unwrap().cover_color.as_deref(), Some("#0000ff"));
+    }
+
+    #[test]
+    fn hash_is_used_when_the_digest_is_null() {
+        let (_dir, lib) = loaded();
+        assert_eq!(track(&lib, 3).unwrap().cover_digest.as_deref(), Some("3039"));
+    }
+
+    #[test]
+    fn no_cover_or_no_location_gives_none() {
+        let (_dir, lib) = loaded();
+        let none = track(&lib, 6).unwrap();
+        assert_eq!((none.cover_color.as_deref(), none.cover_digest.as_deref()), (None, None));
+        assert!(!lib.files.covers.contains_key(&6));
+        assert!(lib.files.paths.contains_key(&6), "the audio file is still known");
+        // Embedded cover recorded, but no file to read it from: colour only.
+        let unplaced = track(&lib, 5).unwrap();
+        assert_eq!(unplaced.cover_color.as_deref(), Some("#00ff00"));
+        assert_eq!(unplaced.cover_digest, None);
+        assert!(!lib.files.paths.contains_key(&5));
+    }
+
+    #[test]
+    fn cover_sources_resolve_embedded_relative_and_absolute() {
+        let (_dir, lib) = loaded();
+        let covers = &lib.files.covers;
+        assert_eq!(
+            covers[&1],
+            CoverSource { kind: CoverKind::Embedded, audio_path: "/music/Alpha/alpha.mp3".into(), key: "00ff10ab".into() }
+        );
+        assert_eq!(covers[&2].kind, CoverKind::File("/music/Bravo/cover.jpg".into()));
+        assert_eq!(covers[&2].audio_path, PathBuf::from("/music/Bravo/bravo.flac"));
+        assert_eq!(covers[&3].kind, CoverKind::File("/art/charlie.png".into()));
+        assert_eq!(covers.len(), 3);
+    }
+
+    #[test]
+    fn library_without_cover_columns_has_no_covers() {
+        let dir = TempDir::new();
+        let lib = load(&fixture::create_without_covers(dir.path())).unwrap();
+        assert_eq!(lib.tracks.len(), 5);
+        assert!(lib.tracks.iter().all(|t| t.cover_color.is_none() && t.cover_digest.is_none()));
+        assert!(lib.files.covers.is_empty());
+        assert_eq!(lib.files.paths.len(), 4);
+    }
+
+    #[test]
+    fn file_details_are_not_serialized() {
+        let (_dir, lib) = loaded();
+        let json = serde_json::to_value(&lib).unwrap();
+        assert!(json.get("files").is_none());
+        assert_eq!(json["tracks"][0]["coverDigest"], "00ff10ab");
+        assert!(!json.to_string().contains("/music/"));
     }
 
     #[test]

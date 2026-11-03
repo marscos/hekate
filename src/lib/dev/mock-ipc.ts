@@ -26,6 +26,29 @@ function camelotOf(keyId: number) {
   return null;
 }
 
+/** A stable colour per track, spread around the hue circle. */
+function coverColorOf(id: number) {
+  const hue = (id * 137.508) % 360;
+  const f = (n: number) => {
+    const k = (n + hue / 30) % 12;
+    const v = 0.5 - 0.35 * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(v * 255).toString(16).padStart(2, "0");
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+/** A placeholder cover in the track's colour, recognisably not the plain colour square. */
+function mockCover(color: string) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></linearGradient></defs>
+<rect width="128" height="128" fill="${color}"/><rect width="128" height="128" fill="url(#g)"/>
+<circle cx="64" cy="64" r="40" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="6"/><circle cx="64" cy="64" r="8" fill="#fff" fill-opacity=".6"/></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+/** About one track in ten has no cover, like a real library with a few untagged files. */
+const hasCover = (id: number) => id % 10 !== 7;
+
 export function syntheticLibrary(count = 640, seed = 11): Library {
   const rand = rng(seed);
   const tracks: Track[] = Array.from({ length: count }, (_, i) => {
@@ -43,6 +66,8 @@ export function syntheticLibrary(count = 640, seed = 11): Library {
       keyId,
       camelot,
       usable: camelot !== null && bpm > 0,
+      coverColor: hasCover(i + 1) ? coverColorOf(i + 1) : null,
+      coverDigest: hasCover(i + 1) ? (i + 1).toString(16).padStart(8, "0") : null,
     };
   });
   const crateNames = ["Bomb bomb", "Crate", "Love Shot", "Peak", "Tic tic", "Warmup", "Afters", "Classics"];
@@ -66,6 +91,7 @@ export function install() {
   const injected = (window as unknown as { __hekateDemoLibrary?: Library }).__hekateDemoLibrary;
   const library = injected ?? syntheticLibrary();
   let granted = scenario === "ready";
+  const tracksById = new Map(library.tracks.map((t) => [t.id, t]));
 
   mockIPC(
     (cmd, payload) => {
@@ -83,6 +109,13 @@ export function install() {
           if (!path.endsWith(".sqlite")) throw { kind: "invalidLibrary", path, reason: "file is not a database" };
           granted = true;
           return { ...library, path };
+        }
+        case "track_cover": {
+          const track = tracksById.get(Number(args.trackId));
+          // Slow enough to see the colour placeholder first.
+          return new Promise((resolve) =>
+            setTimeout(() => resolve(track?.coverDigest && track.coverColor ? mockCover(track.coverColor) : null), 150),
+          );
         }
         case "plugin:dialog|open":
           return MOCK_PATH;
