@@ -85,7 +85,7 @@
               request={session.request}
               route={session.route}
               hasCurrent={session.current !== undefined}
-              tolerance={session.tolerance}
+              tolerance={session.routeTolerance}
               onRequest={(id) => session.setRequest(id)}
               onClear={() => session.setRequest(null)}
               onWiden={() => session.setTolerance(Math.min(0.1, session.tolerance + 0.02))}

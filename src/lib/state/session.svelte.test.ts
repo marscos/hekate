@@ -59,4 +59,27 @@ describe("Session", () => {
     session().setTolerance(0.04);
     expect(session().tolerance).toBe(0.04);
   });
+
+  it("applies a previewed tolerance without remembering it", () => {
+    const s = session();
+    s.setNowPlaying(1);
+    s.previewTolerance(0.03);
+    expect(s.suggestions).toHaveLength(0);
+    expect(session().tolerance).toBe(0.06);
+  });
+
+  it("keeps the route's tolerance through previews until one is committed", () => {
+    const s = session();
+    s.setNowPlaying(1);
+    s.setRequest(3);
+    expect(s.route?.kind === "route" && s.route.trackIds).toEqual([1, 2, 3]);
+    // At ±3% there is no route, so a route still present is using ±6%.
+    s.previewTolerance(0.03);
+    expect(s.suggestions).toHaveLength(0);
+    expect(s.routeTolerance).toBe(0.06);
+    expect(s.route?.kind === "route" && s.route.trackIds).toEqual([1, 2, 3]);
+    s.setTolerance(0.03);
+    expect(s.routeTolerance).toBe(0.03);
+    expect(s.route?.kind).toBe("none");
+  });
 });

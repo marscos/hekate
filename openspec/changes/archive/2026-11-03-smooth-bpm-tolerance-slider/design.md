@@ -25,6 +25,14 @@ See proposal.md (Why) for the symptom. The relevant current state:
 
 ## Decisions
 
+### D0. Fixed widths for the readout and the pool picker
+The "±x%" readout gets `shrink-0` alongside its existing `w-10`. Today it is a shrinkable flex item, so it collapses to its text (25 px for "±5%", 36 px for "±5.5%") and the slider track's length jumps by ~11 px on every half step. That moves the thumb under the pointer and is the stutter users see. At `text-xs` monospace the widest value, "±9.5%", is 36 px, so `w-10` (40 px) fits every value.
+
+The pool picker gets a fixed width with the crate name truncated (`truncate`, the full label in `title`) and the pool size kept visible. Its width ranged from 118 px ("Crate · 154") to 171 px ("Whole library · 620"), and because the now-playing area is the top bar's only flexible item, every change pushed the controls to its left sideways.
+
+- **Why**: layout shift was the cause the user actually perceived; the update-cost work (D1–D5) keeps the control responsive once it stays still.
+- **Alternative**: right-align the readout in a container sized by its widest value. Same result with more markup.
+
 ### D1. The slider owns a local draft value
 The top bar keeps a local `draft` (in percent) bound to the slider, and the readout shows `draft`. When no drag is in progress, `draft` follows `session.tolerance`, so the "widen tolerance" actions and the value restored at launch still move the thumb.
 
@@ -49,9 +57,17 @@ The top bar keeps a local `draft` (in percent) bound to the slider, and the read
 ### D4. Keyboard and click steps stay immediate
 A keyboard step fires both `onValueChange` and `onValueCommit`. The commit path applies the value immediately (D3), so single steps don't wait a frame.
 
+### D5. The route holds its tolerance during a drag
+`Session` keeps a second value, `routeTolerance`, which only `setTolerance` (a commit or a "widen" action) changes. `previewTolerance` leaves it alone. The route derives from `routeTolerance`, and the route summary's "no route at ±x%" message shows it too, so the message always matches the route on screen.
+
+- **Why**: measured in the dev build with the 640-track synthetic library, a view update costs ~15 ms without a request and ~170–210 ms with one. `findRoute` accounts for only ~20 ms of that; the rest is the route-dependent re-rendering. Holding the route removes all of it from the drag. A DJ adjusting tolerance cares about the route's result once they let go, not about each intermediate route.
+- **Alternatives**:
+  - Make route updates cheaper: worth doing, but it's a separate investigation (where the ~150 ms outside `findRoute` goes) and wouldn't guarantee one frame per update.
+  - Compute routes in a worker: a bigger architectural change, for the same reason out of scope here.
+
 ## Risks / Trade-offs
 
-- [A single downstream update still takes ~70 ms or more with a request set] → The thumb stays smooth (D1, D2), but the compass and list refresh at roughly 10–15 fps during a drag. Acceptable for this change. Profiling on the real library (MVP task 8.1) decides whether a follow-up should make routing or the compass cheaper.
+- [A single drag update is still slower than a frame on a much larger library] → Measured at ~15 ms with the route held (D5). Profiling on the real library (MVP task 8.1) decides whether a follow-up should make the compass or list cheaper.
 - [The draft and the session drift apart, for example if a commit is lost when the pointer leaves the window] → bits-ui also commits on `pointerleave`. In addition, `draft` re-syncs from `session.tolerance` whenever no drag is active.
 - [A pending update fires after the component unmounts] → Cancel the scheduled frame and task on teardown.
 - [Testing frame timing in jsdom is awkward] → Put the coalescing logic in a small pure helper that takes injectable schedulers, and unit-test it with fake timers. The drag feel is checked manually in the app.

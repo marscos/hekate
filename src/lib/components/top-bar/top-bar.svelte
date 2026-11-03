@@ -4,12 +4,38 @@
   import { Slider } from "$lib/components/ui/slider";
   import { Switch } from "$lib/components/ui/switch";
   import { formatBpm, formatKey, formatTolerance } from "$lib/format";
+  import { afterPaint } from "$lib/hooks/after-paint";
   import type { Session } from "$lib/state/session.svelte";
+  import { untrack } from "svelte";
   import PoolPicker from "./pool-picker.svelte";
   import TrackSearch from "./track-search.svelte";
 
   let { session }: { session: Session } = $props();
   const current = $derived(session.current);
+
+  // The slider follows a local draft so its thumb never waits on the views.
+  // While dragging, the views get the latest value once per frame, unsaved;
+  // a commit (release or keyboard step) applies and saves it.
+  let dragging = false;
+  let draft = $state(untrack(() => session.tolerance * 100));
+  const previews = afterPaint((percent: number) => session.previewTolerance(percent / 100));
+
+  $effect(() => {
+    const percent = session.tolerance * 100;
+    if (!dragging) draft = percent;
+  });
+  $effect(() => () => previews.cancel());
+
+  function onToleranceChange(percent: number) {
+    dragging = true;
+    previews.push(percent);
+  }
+
+  function onToleranceCommit(percent: number) {
+    dragging = false;
+    previews.cancel();
+    session.setTolerance(percent / 100);
+  }
 </script>
 
 <header class="flex h-16 min-w-0 items-center gap-4 rounded-lg border bg-card px-4">
@@ -49,11 +75,12 @@
       min={1}
       max={10}
       step={0.5}
-      value={session.tolerance * 100}
-      onValueChange={(v: number) => session.setTolerance(v / 100)}
+      bind:value={draft}
+      onValueChange={onToleranceChange}
+      onValueCommit={onToleranceCommit}
       aria-label="BPM tolerance"
     />
-    <span class="w-10 text-right font-mono text-xs tabular-nums" data-testid="tolerance">{formatTolerance(session.tolerance)}</span>
+    <span class="w-10 shrink-0 text-right font-mono text-xs tabular-nums" data-testid="tolerance">{formatTolerance(draft / 100)}</span>
   </div>
 
   <PoolPicker pool={session.pool} crates={session.library.library?.crates ?? []} />
