@@ -49,9 +49,17 @@ The top bar keeps a local `draft` (in percent) bound to the slider, and the read
 ### D4. Keyboard and click steps stay immediate
 A keyboard step fires both `onValueChange` and `onValueCommit`. The commit path applies the value immediately (D3), so single steps don't wait a frame.
 
+### D5. The route holds its tolerance during a drag
+`Session` keeps a second value, `routeTolerance`, which only `setTolerance` (a commit or a "widen" action) changes. `previewTolerance` leaves it alone. The route derives from `routeTolerance`, and the route summary's "no route at ±x%" message shows it too, so the message always matches the route on screen.
+
+- **Why**: measured in the dev build with the 640-track synthetic library, a view update costs ~15 ms without a request and ~170–210 ms with one. `findRoute` accounts for only ~20 ms of that; the rest is the route-dependent re-rendering. Holding the route removes all of it from the drag. A DJ adjusting tolerance cares about the route's result once they let go, not about each intermediate route.
+- **Alternatives**:
+  - Make route updates cheaper: worth doing, but it's a separate investigation (where the ~150 ms outside `findRoute` goes) and wouldn't guarantee one frame per update.
+  - Compute routes in a worker: a bigger architectural change, for the same reason out of scope here.
+
 ## Risks / Trade-offs
 
-- [A single downstream update still takes ~70 ms or more with a request set] → The thumb stays smooth (D1, D2), but the compass and list refresh at roughly 10–15 fps during a drag. Acceptable for this change. Profiling on the real library (MVP task 8.1) decides whether a follow-up should make routing or the compass cheaper.
+- [A single drag update is still slower than a frame on a much larger library] → Measured at ~15 ms with the route held (D5). Profiling on the real library (MVP task 8.1) decides whether a follow-up should make the compass or list cheaper.
 - [The draft and the session drift apart, for example if a commit is lost when the pointer leaves the window] → bits-ui also commits on `pointerleave`. In addition, `draft` re-syncs from `session.tolerance` whenever no drag is active.
 - [A pending update fires after the component unmounts] → Cancel the scheduled frame and task on teardown.
 - [Testing frame timing in jsdom is awkward] → Put the coalescing logic in a small pure helper that takes injectable schedulers, and unit-test it with fake timers. The drag feel is checked manually in the app.

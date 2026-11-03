@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Responsive tolerance control
-While the user drags the BPM tolerance control, the control and its displayed value SHALL follow the pointer without lagging behind it. Suggestions, the compass and routes SHALL keep updating during the drag using the most recent value, and SHALL skip intermediate values rather than process every step in turn.
+While the user drags the BPM tolerance control, the control and its displayed value SHALL follow the pointer without lagging behind it. Suggestions and the compass SHALL keep updating during the drag using the most recent value, skipping intermediate values rather than processing every step in turn. A route to a request SHALL keep its previous tolerance until the drag ends.
 
 #### Scenario: Dragging across the range
 - **WHEN** the user drags the tolerance control from ±6% to ±10% in one continuous motion
@@ -11,7 +11,11 @@ While the user drags the BPM tolerance control, the control and its displayed va
 
 #### Scenario: Views follow the drag
 - **WHEN** the user pauses mid-drag at ±8%
-- **THEN** suggestions, the compass and any route reflect ±8%
+- **THEN** suggestions and the compass reflect ±8%
+
+#### Scenario: Route waits for the release
+- **WHEN** a request is set and the user drags the tolerance from ±6% to ±8% without releasing it
+- **THEN** the route and its "no route" message still use ±6%, and they switch to ±8% when the user releases the control
 
 #### Scenario: Release settles on the final value
 - **WHEN** the user releases the control at ±9.5%

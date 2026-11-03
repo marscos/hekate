@@ -9,8 +9,9 @@ The thumb's position is bound to the session's tolerance, so it can only move on
 ## What Changes
 
 - The slider thumb and the "±x%" readout follow the pointer on every frame while dragging, independent of the downstream recomputation.
-- While dragging, the views update with the latest value, at most once per animation frame. Intermediate values that arrive in between are dropped, not queued.
-- When the drag ends, the views update to the final value. The tolerance preference is saved only at that point, not on every step.
+- While dragging, suggestions and the compass update with the latest value, at most once per animation frame. Intermediate values that arrive in between are dropped, not queued.
+- A route to a request keeps its previous tolerance until the drag ends, then recomputes once. Measured on the 640-track synthetic library, a view update costs ~15 ms without a request but ~170 ms with one, too slow to repeat during a drag.
+- When the drag ends, every view, including the route, updates to the final value. The tolerance preference is saved only at that point, not on every step.
 - Single-step changes (click on the track, keyboard arrows) behave as today: the views update immediately and the value is saved.
 - No change to the tolerance range (±1–10%), step (0.5%), default (±6%) or what tolerance means.
 
