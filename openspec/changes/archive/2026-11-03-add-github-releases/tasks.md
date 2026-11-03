@@ -43,7 +43,7 @@
 
 ## 4. First release
 
-- [ ] 4.1 Push tag `v0.1.0` from `main`. Then download the draft's dmg onto an Apple Silicon Mac and install it. Verify:
+- [x] 4.1 Push tag `v0.1.0` from `main`. Then download the draft's dmg onto an Apple Silicon Mac and install it. Verify:
   - macOS does not call it damaged
   - Open Anyway works as the notes describe
   - the app's About / `Info.plist` version is `0.1.0`
@@ -54,5 +54,5 @@
 
 ## Workflow follow-up
 
-- At the next release after `v0.1.0`, install it over `v0.1.0` on a Mac that has already granted access, and confirm macOS doesn't ask again. This is the "Updating keeps the data-access permission" scenario for real.
-- Archive the change once 4.1 is done and the follow-up check above has passed, or after the spec has been revised to match what was found.
+- Archive the change. The spec already matches the spike outcome (design D4), so no further check is needed before archiving.
+- Reducing the macOS permission prompts is left to the change that reads track files (`show-album-covers`). Its proposal's note that `add-github-releases` would give builds a stable signing identity is now out of date.

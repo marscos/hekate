@@ -2,7 +2,7 @@
 
 ## Purpose
 
-How users get and update hekate: downloadable releases for each platform, an install and update experience that keeps macOS permissions, and honest labelling of what has been tested.
+How users get and update hekate: downloadable releases for each platform, installers that macOS opens after one confirmation per version, and honest labelling of what has been tested.
 
 ## ADDED Requirements
 
