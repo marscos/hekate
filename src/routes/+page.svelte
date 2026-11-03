@@ -6,6 +6,7 @@
   import RouteSummary from "$lib/components/wheel/route-summary.svelte";
   import WheelMap from "$lib/components/wheel/wheel-map.svelte";
   import * as Card from "$lib/components/ui/card";
+  import * as Tooltip from "$lib/components/ui/tooltip";
   import type { HistorySnapshot } from "$lib/state/now-playing.svelte";
   import { Session } from "$lib/state/session.svelte";
   import { isTauri } from "@tauri-apps/api/core";
@@ -39,6 +40,9 @@
   });
 </script>
 
+<!-- One provider for every move-label tooltip. The delay stops tooltips
+     flashing while the pointer crosses the next-up table. -->
+<Tooltip.Provider delayDuration={400}>
 {#if session.library.phase !== "ready"}
   <FirstRun library={session.library} />
 {:else}
@@ -117,3 +121,4 @@
     </Card.Root>
   </div>
 {/if}
+</Tooltip.Provider>

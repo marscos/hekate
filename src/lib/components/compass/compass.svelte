@@ -1,10 +1,13 @@
 <script lang="ts">
   // The transition compass (spec: transition-compass). unovis draws the nodes;
-  // an SVG overlay in the same pixel space draws rings, sides and slot labels.
+  // an SVG overlay in the same pixel space draws rings and sides, and an HTML
+  // layer above both places the slot labels (spec: transition-glossary).
   import UnovisGraph from "$lib/components/graph/unovis-graph.svelte";
   import { compassLayout, radiusFor, RISK_RINGS } from "$lib/engine/compass-layout";
-  import { MOVE_LABEL } from "$lib/engine/camelot";
+  import MoveLabel from "$lib/components/glossary/move-label.svelte";
+  import { MOVE_INFO, MOVE_LABEL } from "$lib/engine/camelot";
   import type { Suggestion } from "$lib/engine/ranking";
+  import { CONVENTION_BADGE } from "$lib/engine/transition";
   import { formatBpm, formatGap, formatKey, formatRisk, riskBand, trackName } from "$lib/format";
   import type { Track } from "$lib/library/types";
   import { Graph, GraphLayoutType, GraphNodeSelectionHighlightMode, type GraphConfigInterface } from "@unovis/ts";
@@ -55,8 +58,6 @@
   });
 
   const riskColor = { safe: "var(--risk-safe)", moderate: "var(--risk-moderate)", bold: "var(--risk-bold)" };
-  const badge = (s: Suggestion) =>
-    s.move === "up2" ? "⚡" : s.move === "semitoneUp" ? "↑" : undefined;
 
   // Read reactive values here, not inside accessors: unovis calls those later,
   // outside Svelte's tracking.
@@ -80,7 +81,7 @@
       nodeLabel: (n) => (n.anchor || n.suggestion ? "" : formatKey(now?.camelot ?? null)),
       nodeDisabled: (n) => n.suggestion?.playedTonight ?? false,
       nodeSideLabels: (n) => {
-        const text = n.suggestion && badge(n.suggestion);
+        const text = n.suggestion && CONVENTION_BADGE[n.suggestion.move];
         return text ? [{ text, radius: 6, fontSize: "9px", color: "var(--muted)", textColor: "var(--foreground)" }] : [];
       },
       linkStroke: "var(--border)",
@@ -122,25 +123,28 @@
       {/each}
       <text x={12} y={20} class="fill-mood-darker text-xs font-medium">◀ darker (minor)</text>
       <text x={width - 12} y={20} text-anchor="end" class="fill-mood-brighter text-xs font-medium">brighter (major) ▶</text>
-      {#each layout.slots as slot (slot.key)}
-        {@const r = Math.hypot(slot.x, slot.y) || 1}
-        {@const lx = cx + (slot.x / r) * LABEL_RADIUS * scale}
-        {@const ly = cy + (slot.y / r) * LABEL_RADIUS * scale}
-        <text
-          x={lx}
-          y={ly}
-          text-anchor={slot.side === "darker" ? "end" : "start"}
-          dominant-baseline="middle"
-          class="fill-current text-[11px]"
-        >
-          {MOVE_LABEL[slot.move]}{#if slot.overflow > 0}{` +${slot.overflow} more`}{/if}
-        </text>
-      {/each}
     </svg>
 
     {#if width > 0 && height > 0}
       <UnovisGraph {data} {config} class="absolute inset-0" />
     {/if}
+
+    <!-- Slot labels are HTML above the graph so they can explain their move on
+         hover. Only the labels take the pointer; nodes around them stay live. -->
+    <div class="pointer-events-none absolute inset-0 text-[11px] leading-none text-muted-foreground" data-testid="compass-slot-labels">
+      {#each layout.slots as slot (slot.key)}
+        {@const r = Math.hypot(slot.x, slot.y) || 1}
+        {@const lx = cx + (slot.x / r) * LABEL_RADIUS * scale}
+        {@const ly = cy + (slot.y / r) * LABEL_RADIUS * scale}
+        <div
+          class="pointer-events-auto absolute whitespace-nowrap {slot.side === 'darker' ? '-translate-x-full' : ''} -translate-y-1/2"
+          style:left="{lx}px"
+          style:top="{ly}px"
+        >
+          <MoveLabel move={slot.move} suffix={slot.overflow > 0 ? ` +${slot.overflow} more` : ""} side={slot.side === "darker" ? "left" : "right"} />
+        </div>
+      {/each}
+    </div>
 
     {#if details && detailsTrack}
       <div class="pointer-events-none absolute bottom-2 left-2 max-w-[60%] rounded-md border bg-popover/95 px-3 py-2 text-xs shadow" data-testid="compass-details">
@@ -154,6 +158,7 @@
           {#if details.label}<span class="text-foreground">{details.label}</span>{/if}
           {#if details.playedTonight}<span>played tonight</span>{/if}
         </div>
+        <div class="mt-1 text-muted-foreground" data-testid="compass-move-meaning">{MOVE_INFO[details.move].meaning}</div>
       </div>
     {/if}
   {/if}

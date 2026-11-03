@@ -14,6 +14,12 @@ export const CONVENTION_LABEL: Partial<Record<Move, string>> = {
   semitoneUp: "semitone lift",
 };
 
+/** The glyph the compass draws beside a node whose move has a convention name. */
+export const CONVENTION_BADGE: Partial<Record<Move, string>> = {
+  up2: "⚡",
+  semitoneUp: "↑",
+};
+
 export interface Transition {
   from: number;
   to: number;

@@ -27,7 +27,29 @@ export const MOVE_LABEL: Record<Move, string> = {
   parallel: "parallel",
 };
 
-export const codeOf = (c: Camelot) => `${c.num}${c.letter}`;
+/**
+ * What each move does to the key, and how many of the seven scale notes the
+ * two keys share (spec: transition-glossary). Key distance and mode only: no
+ * claims about energy or how a move feels. The count is the same from every
+ * starting key; camelot.test.ts checks it against the real scales.
+ */
+export const MOVE_INFO: Record<Move, { meaning: string; sharedNotes: number }> = {
+  same: { meaning: "Same key: nothing changes harmonically.", sharedNotes: 7 },
+  up1: { meaning: "Up a fifth, one step clockwise. Same mode.", sharedNotes: 6 },
+  down1: { meaning: "Down a fifth, one step anticlockwise. Same mode.", sharedNotes: 6 },
+  relative: { meaning: "Same notes, other mode: minor and major swap.", sharedNotes: 7 },
+  diagonal: { meaning: "One step around the wheel and a swap between minor and major.", sharedNotes: 6 },
+  up2: { meaning: "Up a whole tone, two steps clockwise. Same mode.", sharedNotes: 5 },
+  down2: { meaning: "Down a whole tone, two steps anticlockwise. Same mode.", sharedNotes: 5 },
+  semitoneUp: { meaning: "Up a half step: 7 steps clockwise (5 anticlockwise). Same mode.", sharedNotes: 2 },
+  semitoneDown: { meaning: "Down a half step: 7 steps anticlockwise (5 clockwise). Same mode.", sharedNotes: 2 },
+  parallel: { meaning: "Same root note, other mode (e.g. A minor to A major).", sharedNotes: 4 },
+};
+
+/** "N of 7 notes shared", as shown beside a move's meaning. */
+export const sharedNotesText = (move: Move) => `${MOVE_INFO[move].sharedNotes} of 7 notes shared`;
+
+export const codeOf =(c: Camelot) => `${c.num}${c.letter}`;
 
 /** Clockwise steps from `from` to `to` around the wheel, 0–11. */
 const steps = (from: Camelot, to: Camelot) => (((to.num - from.num) % 12) + 12) % 12;

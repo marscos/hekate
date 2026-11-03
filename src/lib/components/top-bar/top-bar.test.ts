@@ -55,3 +55,33 @@ describe("TopBar tolerance", () => {
     expect(screen.getByTestId("tolerance").textContent).toBe("±10%");
   });
 });
+
+describe("TopBar glossary", () => {
+  const glossary = () => document.querySelector("[data-testid=glossary]");
+
+  it("opens from its button", async () => {
+    render(TopBar, { session: session() });
+    expect(glossary()).toBeNull();
+    await fireEvent.click(screen.getByRole("button", { name: "Glossary" }));
+    expect(await screen.findByTestId("glossary")).toBeTruthy();
+  });
+
+  it("opens on ? when no field has focus, and closes on Escape", async () => {
+    render(TopBar, { session: session() });
+    await fireEvent.keyDown(document.body, { key: "?" });
+    expect(await screen.findByTestId("glossary")).toBeTruthy();
+    await fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+    await vi.waitFor(() => expect(glossary()).toBeNull());
+  });
+
+  it("leaves ? to the track search while typing", async () => {
+    render(TopBar, { session: session() });
+    const search = screen.getByRole("textbox", { name: "Search tracks" });
+    search.focus();
+    // Not cancelled, so the browser types the character into the field.
+    expect(await fireEvent.keyDown(search, { key: "?" })).toBe(true);
+    await fireEvent.input(search, { target: { value: "?" } });
+    expect((search as HTMLInputElement).value).toBe("?");
+    expect(glossary()).toBeNull();
+  });
+});

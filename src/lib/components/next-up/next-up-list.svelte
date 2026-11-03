@@ -3,7 +3,7 @@
   // Keyboard: ↑/↓ select, Enter sets now-playing, R sets the request target.
   import { Badge } from "$lib/components/ui/badge";
   import { Button } from "$lib/components/ui/button";
-  import { MOVE_LABEL } from "$lib/engine/camelot";
+  import MoveLabel from "$lib/components/glossary/move-label.svelte";
   import type { Suggestion, SuggestionSort } from "$lib/engine/ranking";
   import { formatBpm, formatGap, formatKey, formatRisk, formatTolerance, riskBand } from "$lib/format";
   import type { Track } from "$lib/library/types";
@@ -121,7 +121,7 @@
                 <td class="text-right font-mono tabular-nums">
                   {formatGap(s.gapPct)}{#if s.halfDouble}<span class="ml-1 text-xs text-muted-foreground" title="Half/double time">½×</span>{/if}
                 </td>
-                <td class="whitespace-nowrap">{MOVE_LABEL[s.move]}</td>
+                <td class="whitespace-nowrap"><MoveLabel move={s.move} /></td>
                 <td class="whitespace-nowrap">
                   {#if s.mood === "brighter"}
                     <span class="flex items-center gap-1 text-mood-brighter"><Sun class="size-3.5" />brighter</span>
