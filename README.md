@@ -11,6 +11,39 @@ Built with Tauri 2, SvelteKit (Svelte 5), shadcn-svelte and unovis.
 [hekate-demo.webm](https://github.com/user-attachments/assets/66f36d12-3000-48e0-bd93-b7f3e3b2f7cd)
 
 
+## Download
+
+Get the latest version from [Releases](https://github.com/marscos/hekate/releases/latest).
+
+| Platform | File | Status |
+|---|---|---|
+| macOS (Apple Silicon and Intel) | `hekate_<version>_universal.dmg` | Tested |
+| Windows 10/11 (x64) | `hekate_<version>_x64-setup.exe` | **UNVERIFIED** |
+| Linux (x86_64) | `hekate_<version>_amd64.AppImage` or `.deb` | **UNVERIFIED** |
+
+**UNVERIFIED** builds come from the same automated build but haven't been tested by the maintainer. They may not work; please [open an issue](https://github.com/marscos/hekate/issues) if they don't.
+
+hekate never updates itself (see [Offline by design](#offline-by-design)). To update, download the new release and install it over the old one. Your settings are kept.
+
+### First launch on macOS
+
+hekate isn't notarized by Apple, so macOS asks you to confirm each new version once:
+
+1. Open the `.dmg` and drag **hekate** to **Applications**.
+2. Open hekate. macOS says it could not verify the app. Click **Done**.
+3. Open **System Settings › Privacy & Security**, scroll down to the message about hekate, and click **Open Anyway**. Confirm with your password if asked.
+
+After that, this version opens normally. Repeat these steps after installing a new version.
+
+If you use Mixxx from mixxx.org, macOS also asks each time you open hekate whether it may **access data from other apps**. See [macOS permission prompt](#macos-permission-prompt).
+
+### First launch on Windows
+
+Windows SmartScreen may say "Windows protected your PC". Click **More info**, then **Run anyway**.
+
+The installer uses Microsoft Edge WebView2, which Windows 10 and 11 normally already have. If it's missing, the installer downloads it, so install hekate while online. hekate itself never uses the network.
+
+
 ## Development
 
 ```bash
@@ -42,7 +75,9 @@ Tracks with no detected key or BPM are left out of suggestions, the compass and 
 
 ### macOS permission prompt
 
-The sandboxed Mixxx build keeps its library inside its own app container. The first time hekate reads it, macOS asks whether hekate may **access data from other apps**. hekate explains this before the prompt appears. If you choose **Don't Allow**, you can allow it later in System Settings › Privacy & Security, or pick the `mixxxdb.sqlite` file manually instead.
+The sandboxed Mixxx build keeps its library inside its own app container. When hekate reads it, macOS asks whether hekate may **access data from other apps**. hekate explains this before the prompt appears the first time. Allowing it lets hekate read the library; hekate never changes it.
+
+hekate isn't signed with an Apple Developer ID, so macOS doesn't remember your answer and asks again each time you open hekate. If you choose **Don't Allow**, you can allow it later in System Settings › Privacy & Security, or pick the `mixxxdb.sqlite` file manually instead.
 
 ## Offline by design
 
@@ -53,3 +88,24 @@ hekate works with no network connection and never makes network requests: no fon
 - No network-capable Tauri plugins are installed, and the window's capabilities are limited to what hekate itself uses.
 
 The CSP is enforced in built binaries (`pnpm tauri build`, or `pnpm tauri build --debug --no-bundle` for a quick debug build). `pnpm tauri dev` loads the Vite dev server directly and doesn't enforce it, so check CSP behaviour in a build.
+
+## Releasing
+
+Releases are built by GitHub Actions and published from [Releases](https://github.com/marscos/hekate/releases). The workflow needs no repository secrets. macOS builds are ad-hoc signed (`bundle.macOS.signingIdentity: "-"` in `tauri.conf.json`), the same as a local `pnpm tauri build`.
+
+### Making a release
+
+1. Bump the version in `package.json` and `src-tauri/Cargo.toml` (run `cargo check --manifest-path src-tauri/Cargo.toml` to update `Cargo.lock`), commit, and push to `main`. `tauri.conf.json` reads its version from `package.json`.
+2. Check the versions agree, then tag and push:
+
+   ```bash
+   scripts/check-version.sh v0.2.0
+   git tag v0.2.0 && git push origin v0.2.0
+   ```
+
+3. The **Release** workflow runs the tests and type checks, creates a draft release whose notes start with `.github/release-notes-header.md` followed by GitHub's generated notes, then builds macOS, Windows and Linux in parallel and attaches the installers. If the tag doesn't match the versions in the source, it stops before creating anything.
+4. Download the macOS `.dmg` from the draft, install it and check it works. Then click **Publish release**.
+
+If one platform's build fails, the other installers are still attached and the release stays a draft. Fix the cause, then use **Re-run failed jobs** on the workflow run: the rebuilt installer is uploaded to the same draft. Don't re-run the whole workflow, which would create a second draft.
+
+To abandon a release, delete the draft and the tag (`git push --delete origin v0.2.0`).
