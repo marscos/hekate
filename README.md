@@ -100,7 +100,9 @@ Reading covers means opening your track files. Depending on where they are, macO
 
 So that these prompts appear while you set up, not in the middle of a set, hekate reads one track file from each drive and each top-level folder of your home folder in the background straight after the library loads or reloads. The library, suggestions, compass and routing work normally while a prompt waits for your answer.
 
-hekate doesn't explain these prompts beforehand and never asks for Full Disk Access. If you choose **Don't Allow**, covers from that location show only their colour. To allow access later, open **System Settings › Privacy & Security › Files and Folders**, find **hekate** and turn on the locations you want, then reload the library. macOS may ask again after you install a new version of hekate.
+hekate doesn't explain these prompts beforehand and never asks for Full Disk Access. If you choose **Don't Allow**, covers from that location show only their colour, and everything else works as usual.
+
+hekate isn't signed with an Apple Developer ID, so macOS treats each new version as a new app: after every update, these prompts can appear again.
 
 ## Offline by design
 

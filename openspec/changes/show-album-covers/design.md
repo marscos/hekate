@@ -8,7 +8,7 @@ See proposal.md (Why, What Changes) for motivation, and specs/cover-art/spec.md 
 - **Mixxx doesn't keep covers on disk.** It reads them out of the tags on demand and caches them only in memory, so hekate has to extract them itself.
 - **Real library**: 633 tracks in 344 folders, all under `/Volumes/REDRAGON` (a USB drive, not always mounted). 632 tracks have an embedded cover, and all 632 have `coverart_color` and `coverart_digest`. Other users' libraries will be on the internal disk or spread across volumes.
 - **App shell**: the CSP allows `img-src 'self' data:`. `AppState` keeps the library path for the now-playing poller. The compass (`compass.svelte`) draws nodes with unovis at precalculated pixel positions, with an SVG overlay underneath and an HTML details card in the bottom-left. The centre node is 34 px, filled with `--foreground` and labelled with its key.
-- **macOS file access**: hekate is not sandboxed, so reading most of the disk needs no permission. macOS asks once per protected category, the first time a file in it is opened: removable volumes, network volumes, Desktop, Documents, Downloads and iCloud Drive. It remembers the answer against the app's code identity (see `add-github-releases`).
+- **macOS file access**: hekate is not sandboxed, so reading most of the disk needs no permission. macOS asks once per protected category, the first time a file in it is opened: removable volumes, network volumes, Desktop, Documents, Downloads and iCloud Drive. It remembers the answer against the app's code identity. hekate is ad-hoc signed (`add-github-releases` design D4), so that identity is the build itself, and an answer can last one version at most. For the data-access permission, macOS didn't keep the answer even between launches of the same build. Nobody has tested whether it keeps these file-access answers between launches (task 1.1).
 
 ## Goals / Non-Goals
 
@@ -80,7 +80,7 @@ After `load_library`, `reload_library` and `set_library_path` succeed, the comma
 Zones are checked one after another, so macOS shows at most one prompt at a time, and nothing waits on the thread.
 
 - **Why one file per zone, not per folder**: macOS asks per category, not per folder. Reading one file per volume and per home folder triggers every prompt the library can cause, in about 1–20 reads, where per-folder reads would mean thousands of file opens on a large library (and a sleeping USB drive spinning up). Using top-level home folders rather than a fixed list of protected folders also covers any folder a future macOS starts protecting, at the cost of a few unnecessary reads.
-- **Why check again on every launch**: once macOS has remembered an answer, the check is silent, and it's no more than a few file opens. Tracking which answers were given would mean guessing at macOS's state.
+- **Why check again on every launch**: this assumes macOS keeps the answer for the build. Then the check is silent after the first launch of each version, and costs only a few file opens. Tracking which answers were given would mean guessing at macOS's state. **This assumption is unverified.** If macOS forgets these answers between launches, as it did for the data-access permission, the check shows one prompt per zone on every launch, on top of the data-access prompt. Task 1.1 measures this, and task 1.3 decides what the check does if so (Open Questions).
 - **Windows and Linux**: no check. Covers load on demand.
 
 ### D7. Dev mode
@@ -88,8 +88,10 @@ Zones are checked one after another, so macOS shows at most one prompt at a time
 
 ## Risks / Trade-offs
 
-- [The macOS prompt may fire on `stat` or directory listing rather than on opening the file, or not on a plain read] → Task 1 is a spike on a real, signed build that confirms which call triggers each prompt before the check is built. The check itself is just an open, so the design holds whatever the answer.
-- [In `pnpm tauri dev`, macOS attributes prompts to the terminal or IDE, and an ad-hoc build is re-prompted after each rebuild] → Run the manual checks on a bundled build. Stable answers across releases depend on `add-github-releases`.
+- [The macOS prompt may fire on `stat` or directory listing rather than on opening the file, or not on a plain read] → The check checks a volume's folder exists and then opens and reads 4 KB of a file, so it triggers the prompt whichever call does. Which one does is no longer worth a separate spike.
+- [In `pnpm tauri dev`, macOS attributes prompts to the terminal or IDE, and a build run from the build folder or copied with `ditto`/`cp` runs translocated from a new path on each launch, which looks like a new app] → Run the spike and manual checks on a bundled build installed like a user's: a quarantined `.dmg`, dragged to Applications in Finder.
+- [Releases are ad-hoc signed, so an answer never carries over to a new version] → After each update, every prompt the library causes can appear again. Only an Apple Developer ID could change that (untested), and it would be a separate change.
+- [macOS may forget the file-access answers between launches of the same build, as it did for data access] → The check would then show one prompt per zone on every launch. Task 1.1 measures this, and task 1.3 decides what to do about it.
 - [Some covers are formats `image` can't decode with JPEG and PNG only, such as WebP or CMYK JPEG] → They fall back to the colour. Add the `webp` feature if the spike finds such covers in the real library.
 - [A large embedded cover (several MB PNG) takes noticeable time on first view; the real library has 5835×5835 covers that take about 0.5 s] → The colour shows immediately. The startup check warms only one cover per zone, so the first view of other tracks still pays this once.
 - [`coverart_location` semantics for type 2 vary between Mixxx versions (absolute or relative)] → Handle both (D1). An unresolvable path falls back to the colour.
@@ -98,4 +100,11 @@ Zones are checked one after another, so macOS shows at most one prompt at a time
 
 ## Open Questions
 
-- Whether to show a one-time hint after a denied prompt ("Covers unavailable: allow access in System Settings > Privacy & Security > Files and Folders"). It is out of scope here. The README documents it, and it can be added later without changing the pipeline.
+- **If the file-access prompts recur** on every launch (or the spike shows the cost is too high even once per update), what should hekate do? This is a product decision for task 1.3, taken together with asking only for the permissions hekate needs. It may change the cover-art requirements "File-access prompts appear at setup time" and "No extra permission requests". Options include:
+  - keep the check, so the prompts come at setup on every launch
+  - check each zone once per installed version (remembered in hekate's own settings), so the prompts come at most once per update
+  - drop the check and let prompts come on demand, accepting a prompt mid-set
+  - explain the prompts beforehand
+- **The library's data-access prompt.** Users of Mixxx from mixxx.org get it on every launch. Should this change, as the home of hekate's permission strategy, also cover it, or should it be a change of its own?
+- **Changing an answer later.** Does turning a location on in System Settings › Privacy & Security › Files and Folders take effect for an ad-hoc build, and does the entry survive an update? The README only tells users to do this if task 1.1 confirms it works.
+- **A hint after a denied prompt** ("Covers unavailable: allow access in System Settings…") is out of scope here. It depends on the previous question, and it can be added later without changing the pipeline.
