@@ -17,6 +17,8 @@ export class Session {
   pool: PoolState;
 
   tolerance = $state(readPreference(TOLERANCE, DEFAULT_TOLERANCE));
+  /** The tolerance the route uses: it only follows committed changes, not drag previews. */
+  routeTolerance = $state(this.tolerance);
   sort = $state<SuggestionSort>("best");
   /** Track highlighted in both the compass and the next-up list. */
   selectedId = $state<number | null>(null);
@@ -60,7 +62,7 @@ export class Session {
         currentId: current.id,
         targetId: target.id,
         playedTonight: this.nowPlaying.playedTonight,
-        tolerance: this.tolerance,
+        tolerance: this.routeTolerance,
       }));
     });
   }
@@ -70,8 +72,17 @@ export class Session {
   }
 
   setTolerance(tolerance: number) {
-    this.tolerance = tolerance;
+    this.previewTolerance(tolerance);
+    this.routeTolerance = tolerance;
     writePreference(TOLERANCE, tolerance);
+  }
+
+  /**
+   * Applies a tolerance without saving it, for values passed while dragging.
+   * The route keeps its tolerance until the next `setTolerance`.
+   */
+  previewTolerance(tolerance: number) {
+    this.tolerance = tolerance;
   }
 
   setNowPlaying(trackId: number) {
