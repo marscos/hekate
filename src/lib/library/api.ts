@@ -5,6 +5,8 @@ export const libraryAccessInfo = () => invoke<AccessInfo>("library_access_info")
 export const loadLibrary = () => invoke<Library>("load_library");
 export const reloadLibrary = () => invoke<Library>("reload_library");
 export const setLibraryPath = (path: string) => invoke<Library>("set_library_path", { path });
+/** The track's cover thumbnail as a data URI, or null when there is none or it can't be read. */
+export const trackCover = (trackId: number) => invoke<string | null>("track_cover", { trackId });
 
 export function isLibraryError(e: unknown): e is LibraryError {
   return typeof e === "object" && e !== null && "kind" in e;

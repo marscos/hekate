@@ -13,6 +13,8 @@ const lib = (path: string, tracks = 2): Library => ({
     keyId: 1,
     camelot: { num: 8, letter: "B" },
     usable: true,
+    coverColor: null,
+    coverDigest: null,
   })),
   excludedCount: 0,
   crates: [],

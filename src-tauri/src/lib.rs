@@ -1,4 +1,5 @@
 mod commands;
+mod covers;
 mod mixxx;
 mod settings;
 
@@ -36,6 +37,7 @@ pub fn run() {
             commands::load_library,
             commands::reload_library,
             commands::set_library_path,
+            commands::track_cover,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

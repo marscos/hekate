@@ -4,11 +4,11 @@ import type { Letter, Track } from "$lib/library/types";
 
 export function track(id: number, code: string, bpm: number, duration = 200): Track {
   const camelot = { num: Number(code.slice(0, -1)), letter: code.slice(-1) as Letter };
-  return { id, artist: `Artist ${id}`, title: `Track ${id}`, duration, bpm, keyId: 1, camelot, usable: true };
+  return { id, artist: `Artist ${id}`, title: `Track ${id}`, duration, bpm, keyId: 1, camelot, usable: true, coverColor: null, coverDigest: null };
 }
 
 export function unusable(id: number): Track {
-  return { id, artist: "", title: `Raw ${id}`, duration: 200, bpm: 0, keyId: 0, camelot: null, usable: false };
+  return { id, artist: "", title: `Raw ${id}`, duration: 200, bpm: 0, keyId: 0, camelot: null, usable: false, coverColor: null, coverDigest: null };
 }
 
 /** Deterministic library shaped like a real one: ~650 tracks, 24 keys, 70–180 BPM. */

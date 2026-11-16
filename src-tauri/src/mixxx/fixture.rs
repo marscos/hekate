@@ -2,7 +2,9 @@
 //!
 //! The tables and columns mirror the subset of Mixxx's schema hekate reads.
 //! The contents cover mixed key notations, a deleted track, unanalysed tracks,
-//! crates, a regular playlist and two history playlists.
+//! crates, a regular playlist, two history playlists, and every way Mixxx
+//! records a cover (embedded, image file with a relative or absolute location,
+//! none, hash without digest, and a track with no file location).
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -28,7 +30,7 @@ CREATE TABLE library (
     mixxx_deleted INTEGER,
     key varchar(8) DEFAULT '',
     key_id INTEGER DEFAULT 0,
-    last_played_at DATETIME DEFAULT NULL);
+    last_played_at DATETIME DEFAULT NULL{covers});
 CREATE TABLE crates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name varchar(48) UNIQUE NOT NULL,
@@ -53,13 +55,19 @@ CREATE TABLE PlaylistTracks (
 "#;
 
 const DATA: &str = r#"
-INSERT INTO library (id, artist, title, duration, bpm, mixxx_deleted, key, key_id) VALUES
-    (1, 'Artist One', 'Alpha',   240.0, 125.0, 0, '8A', 22),
-    (2, 'Artist Two', 'Bravo',   200.5, 128.0, 0, 'C',  1),
-    (3, NULL,         'Charlie', 180.0, 126.0, 0, '8B', 1),
-    (4, 'Gone',       'Deleted', 210.0, 124.0, 1, '8A', 22),
-    (5, 'Raw',        'No key',  190.0, 0.0,   0, '',   0),
-    (6, 'Raw',        'No BPM',  190.0, 0.0,   0, '5B', 4);
+INSERT INTO track_locations (id, location, filename, directory) VALUES
+    (1, '/music/Alpha/alpha.mp3',     'alpha.mp3',     '/music/Alpha'),
+    (2, '/music/Bravo/bravo.flac',    'bravo.flac',    '/music/Bravo'),
+    (3, '/music/Charlie/charlie.mp3', 'charlie.mp3',   '/music/Charlie'),
+    (4, '/music/Gone/deleted.mp3',    'deleted.mp3',   '/music/Gone'),
+    (6, '/music/Raw/no-bpm.mp3',      'no-bpm.mp3',    '/music/Raw');
+INSERT INTO library (id, artist, title, location, duration, bpm, mixxx_deleted, key, key_id) VALUES
+    (1, 'Artist One', 'Alpha',   1,    240.0, 125.0, 0, '8A', 22),
+    (2, 'Artist Two', 'Bravo',   2,    200.5, 128.0, 0, 'C',  1),
+    (3, NULL,         'Charlie', 3,    180.0, 126.0, 0, '8B', 1),
+    (4, 'Gone',       'Deleted', 4,    210.0, 124.0, 1, '8A', 22),
+    (5, 'Raw',        'No key',  NULL, 190.0, 0.0,   0, '',   0),
+    (6, 'Raw',        'No BPM',  6,    190.0, 0.0,   0, '5B', 4);
 INSERT INTO crates (id, name) VALUES (1, 'D'), (2, 'E'), (3, 'Empty');
 INSERT INTO crate_tracks (crate_id, track_id) VALUES (1, 1), (1, 2), (2, 2), (2, 3), (2, 4);
 INSERT INTO Playlists (id, name, position, hidden, date_created) VALUES
@@ -72,6 +80,30 @@ INSERT INTO PlaylistTracks (playlist_id, track_id, position, pl_datetime_added) 
     (3, 2, 1, '2026-10-14 20:01:00'),
     (5, 3, 1, '2026-10-16 21:00:10'),
     (5, 1, 2, '2026-10-16 21:04:30');
+"#;
+
+/// Mixxx's cover columns (design D2: optional, so a database may lack them).
+const COVER_COLUMNS: &str = ",
+    coverart_source INTEGER DEFAULT 0,
+    coverart_type INTEGER DEFAULT 0,
+    coverart_location TEXT DEFAULT '',
+    coverart_hash INTEGER DEFAULT 0,
+    coverart_color INTEGER,
+    coverart_digest BLOB";
+
+/// 1: embedded. 2: image file next to the track. 3: image file at an absolute
+/// path, with only the older integer hash. 5: embedded but no file location.
+/// 6: no cover.
+const COVERS: &str = r#"
+UPDATE library SET coverart_type = 1, coverart_source = 1, coverart_hash = 4660, coverart_color = 1193046,
+    coverart_digest = X'00ff10ab' WHERE id = 1;
+UPDATE library SET coverart_type = 2, coverart_source = 1, coverart_location = 'cover.jpg', coverart_hash = 1,
+    coverart_color = 255, coverart_digest = X'beef' WHERE id = 2;
+UPDATE library SET coverart_type = 2, coverart_source = 2, coverart_location = '/art/charlie.png',
+    coverart_hash = 12345, coverart_color = 16711680, coverart_digest = NULL WHERE id = 3;
+UPDATE library SET coverart_type = 1, coverart_source = 1, coverart_hash = 7, coverart_color = 65280,
+    coverart_digest = X'0707' WHERE id = 5;
+UPDATE library SET coverart_type = 0, coverart_hash = 0 WHERE id = 6;
 "#;
 
 /// A temporary directory removed on drop.
@@ -102,10 +134,25 @@ impl Drop for TempDir {
 
 /// Writes the fixture database to `dir/mixxxdb.sqlite` and returns its path.
 pub fn create(dir: &Path) -> PathBuf {
+    build(dir, true)
+}
+
+/// Like [`create`], but with no cover columns, as in an older or unusual Mixxx schema.
+pub fn create_without_covers(dir: &Path) -> PathBuf {
+    build(dir, false)
+}
+
+fn build(dir: &Path, covers: bool) -> PathBuf {
     let path = dir.join("mixxxdb.sqlite");
     let conn = Connection::open(&path).unwrap();
-    conn.execute_batch(SCHEMA).unwrap();
+    // Mixxx declares `library.location` as referencing `track_locations(location)`
+    // but stores the location's id in it, so its foreign keys can't be enforced.
+    conn.execute_batch("PRAGMA foreign_keys = OFF;").unwrap();
+    conn.execute_batch(&SCHEMA.replace("{covers}", if covers { COVER_COLUMNS } else { "" })).unwrap();
     conn.execute_batch(DATA).unwrap();
+    if covers {
+        conn.execute_batch(COVERS).unwrap();
+    }
     path
 }
 
@@ -131,5 +178,13 @@ mod tests {
         let conn = Connection::open(&path).unwrap();
         let tracks: i64 = conn.query_row("SELECT COUNT(*) FROM library", [], |r| r.get(0)).unwrap();
         assert_eq!(tracks, 6);
+    }
+
+    #[test]
+    fn fixture_without_covers_has_no_cover_columns() {
+        let dir = TempDir::new();
+        let path = create_without_covers(dir.path());
+        let conn = Connection::open(&path).unwrap();
+        assert!(conn.prepare("SELECT coverart_type FROM library").is_err());
     }
 }

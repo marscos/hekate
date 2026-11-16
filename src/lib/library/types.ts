@@ -17,6 +17,10 @@ export interface Track {
   camelot: Camelot | null;
   /** Has a known key and a positive BPM. */
   usable: boolean;
+  /** The cover's dominant colour (`#rrggbb`), when Mixxx recorded a cover. */
+  coverColor: string | null;
+  /** Identifies the cover image; null when there's no cover to fetch. */
+  coverDigest: string | null;
 }
 
 export interface Crate {

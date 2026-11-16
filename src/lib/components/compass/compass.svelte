@@ -1,3 +1,25 @@
+<script lang="ts" module>
+  import { formatKey } from "$lib/format";
+  import type { Track } from "$lib/library/types";
+
+  /** Diameter of the centre cover, and of the centre node when there is one (design D5). */
+  export const CENTRE_COVER_SIZE = 48;
+  const CENTRE_SIZE = 34;
+
+  /** Mixxx recorded a cover for the track (it may still be loading or unreadable). */
+  export const hasCover = (t: Track | undefined) => !!t && (t.coverDigest !== null || t.coverColor !== null);
+
+  /**
+   * How unovis draws the centre node: as today without a cover; with one, as
+   * large as the cover drawn over it, with the key moved to a pill below.
+   */
+  export function centreNode(now: Track | undefined) {
+    return hasCover(now)
+      ? { size: CENTRE_COVER_SIZE, label: "" }
+      : { size: CENTRE_SIZE, label: formatKey(now?.camelot ?? null) };
+  }
+</script>
+
 <script lang="ts">
   // The transition compass (spec: transition-compass). unovis draws the nodes;
   // an SVG overlay in the same pixel space draws rings and sides, and an HTML
@@ -8,8 +30,7 @@
   import { MOVE_INFO, MOVE_LABEL } from "$lib/engine/camelot";
   import type { Suggestion } from "$lib/engine/ranking";
   import { CONVENTION_BADGE } from "$lib/engine/transition";
-  import { formatBpm, formatGap, formatKey, formatRisk, riskBand, trackName } from "$lib/format";
-  import type { Track } from "$lib/library/types";
+  import { formatBpm, formatGap, formatRisk, riskBand, trackName } from "$lib/format";
   import { Graph, GraphLayoutType, GraphNodeSelectionHighlightMode, type GraphConfigInterface } from "@unovis/ts";
 
   interface Props {
@@ -19,8 +40,10 @@
     selectedId: number | null;
     onSelect: (id: number) => void;
     onNowPlaying: (id: number) => void;
+    /** A track's cover URI, null when none or unreadable, undefined while loading. */
+    cover?: (track: Track | undefined) => string | null | undefined;
   }
-  let { current, suggestions, tracksById, selectedId, onSelect, onNowPlaying }: Props = $props();
+  let { current, suggestions, tracksById, selectedId, onSelect, onNowPlaying, cover = () => null }: Props = $props();
 
   type Node = { id: string; x: number; y: number; suggestion?: Suggestion; anchor?: boolean };
   type Link = { source: string; target: string };
@@ -63,6 +86,7 @@
   // outside Svelte's tracking.
   const config: GraphConfigInterface<Node, Link> = $derived.by(() => configFor(selectedId, current));
   function configFor(selected: number | null, now: Track | undefined): GraphConfigInterface<Node, Link> {
+    const centre = centreNode(now);
     return {
       layoutType: GraphLayoutType.Precalculated,
       layoutAutofit: false,
@@ -71,14 +95,14 @@
       disableBrush: true,
       zoomScaleExtent: [1, 1],
       duration: 0,
-      nodeSize: (n) => (n.anchor ? 0 : n.suggestion ? 13 : 34),
+      nodeSize: (n) => (n.anchor ? 0 : n.suggestion ? 13 : centre.size),
       nodeFill: (n) => (n.anchor ? "transparent" : n.suggestion ? riskColor[riskBand(n.suggestion.risk)] : "var(--foreground)"),
       // Outline the selected node instead of greying out the rest, so every
       // node keeps its risk colour.
       nodeSelectionHighlightMode: GraphNodeSelectionHighlightMode.None,
       nodeStroke: "var(--foreground)",
       nodeStrokeWidth: (n) => (n.suggestion && n.suggestion.to === selected ? 3 : 0),
-      nodeLabel: (n) => (n.anchor || n.suggestion ? "" : formatKey(now?.camelot ?? null)),
+      nodeLabel: (n) => (n.anchor || n.suggestion ? "" : centre.label),
       nodeDisabled: (n) => n.suggestion?.playedTonight ?? false,
       nodeSideLabels: (n) => {
         const text = n.suggestion && CONVENTION_BADGE[n.suggestion.move];
@@ -100,7 +124,16 @@
   const detailsId = $derived(hoveredId ?? selectedId);
   const details = $derived(detailsId === null ? undefined : suggestions.find((s) => s.to === detailsId));
   const detailsTrack = $derived(details ? tracksById.get(details.to) : undefined);
+  const detailsCover = $derived(cover(detailsTrack));
+  const centreCover = $derived(hasCover(current) ? cover(current) : null);
 </script>
+
+<!-- The cover's colour (or a muted square) with the image over it once loaded. -->
+{#snippet coverArt(track: Track, uri: string | null | undefined, cls: string)}
+  <div class="shrink-0 overflow-hidden {cls}" style:background-color={track.coverColor ?? "var(--muted)"} data-testid="cover">
+    {#if uri}<img src={uri} alt="" class="size-full object-cover" draggable="false" />{/if}
+  </div>
+{/snippet}
 
 <div class="relative h-full min-h-0 w-full" bind:clientWidth={width} bind:clientHeight={height} data-testid="compass">
   {#if !current}
@@ -129,6 +162,24 @@
       <UnovisGraph {data} {config} class="absolute inset-0" />
     {/if}
 
+    {#if hasCover(current)}
+      <!-- Over the unovis centre node, which grows to the same size (design D5). -->
+      <div
+        class="pointer-events-none absolute"
+        style:left="{cx - CENTRE_COVER_SIZE / 2}px"
+        style:top="{cy - CENTRE_COVER_SIZE / 2}px"
+        style:width="{CENTRE_COVER_SIZE}px"
+        style:height="{CENTRE_COVER_SIZE}px"
+        data-testid="centre-cover"
+      >
+        {@render coverArt(current, centreCover, "size-full rounded-full ring-2 ring-foreground")}
+        <span
+          class="absolute top-full left-1/2 mt-1 -translate-x-1/2 rounded-full bg-foreground px-1.5 font-mono text-[10px] leading-4 text-background"
+          data-testid="centre-key">{formatKey(current.camelot)}</span
+        >
+      </div>
+    {/if}
+
     <!-- Slot labels are HTML above the graph so they can explain their move on
          hover. Only the labels take the pointer; nodes around them stay live. -->
     <div class="pointer-events-none absolute inset-0 text-[11px] leading-none text-muted-foreground" data-testid="compass-slot-labels">
@@ -147,16 +198,23 @@
     </div>
 
     {#if details && detailsTrack}
-      <div class="pointer-events-none absolute bottom-2 left-2 max-w-[60%] rounded-md border bg-popover/95 px-3 py-2 text-xs shadow" data-testid="compass-details">
-        <div class="truncate text-sm font-medium">{trackName(detailsTrack)}</div>
-        <div class="mt-0.5 flex flex-wrap gap-x-3 text-muted-foreground">
-          <span class="font-mono text-foreground">{formatKey(detailsTrack.camelot)}</span>
-          <span class="font-mono">{formatBpm(detailsTrack.bpm)} BPM ({formatGap(details.gapPct)})</span>
-          <span>{MOVE_LABEL[details.move]}</span>
-          <span class={details.mood === "brighter" ? "text-mood-brighter" : "text-mood-darker"}>{details.mood}</span>
-          <span>risk {formatRisk(details.risk)}</span>
-          {#if details.label}<span class="text-foreground">{details.label}</span>{/if}
-          {#if details.playedTonight}<span>played tonight</span>{/if}
+      <div
+        class="pointer-events-none absolute bottom-2 left-2 flex max-w-[60%] items-center gap-3 rounded-md border bg-popover/95 py-2 pr-3 pl-2 text-xs shadow"
+        data-testid="compass-details"
+      >
+        <!-- Always present, so the card's size and position don't depend on the cover. -->
+        {@render coverArt(detailsTrack, detailsCover, "size-16 rounded-sm")}
+        <div class="min-w-0">
+          <div class="truncate text-sm font-medium">{trackName(detailsTrack)}</div>
+          <div class="mt-0.5 flex flex-wrap gap-x-3 text-muted-foreground">
+            <span class="font-mono text-foreground">{formatKey(detailsTrack.camelot)}</span>
+            <span class="font-mono">{formatBpm(detailsTrack.bpm)} BPM ({formatGap(details.gapPct)})</span>
+            <span>{MOVE_LABEL[details.move]}</span>
+            <span class={details.mood === "brighter" ? "text-mood-brighter" : "text-mood-darker"}>{details.mood}</span>
+            <span>risk {formatRisk(details.risk)}</span>
+            {#if details.label}<span class="text-foreground">{details.label}</span>{/if}
+            {#if details.playedTonight}<span>played tonight</span>{/if}
+          </div>
         </div>
         <div class="mt-1 text-muted-foreground" data-testid="compass-move-meaning">{MOVE_INFO[details.move].meaning}</div>
       </div>

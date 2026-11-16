@@ -3,6 +3,7 @@ import { rankSuggestions, type Suggestion, type SuggestionSort } from "$lib/engi
 import { rerouteFrom, type RouteResult } from "$lib/engine/router";
 import { transitionsFrom, type Transition } from "$lib/engine/transition";
 import type { Track } from "$lib/library/types";
+import { CoverStore } from "./covers.svelte";
 import { LibraryState } from "./library.svelte";
 import { NowPlayingState } from "./now-playing.svelte";
 import { PoolState } from "./pool.svelte";
@@ -15,6 +16,7 @@ export class Session {
   library: LibraryState;
   nowPlaying: NowPlayingState;
   pool: PoolState;
+  covers = new CoverStore();
 
   tolerance = $state(readPreference(TOLERANCE, DEFAULT_TOLERANCE));
   /** The tolerance the route uses: it only follows committed changes, not drag previews. */

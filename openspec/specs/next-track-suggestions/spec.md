@@ -61,8 +61,12 @@ The list SHALL refresh whenever now-playing, the BPM tolerance or the pool chang
 - **THEN** the list shows suggestions for track B
 
 ### Requirement: Act on a suggestion
-The system SHALL let the user set a suggestion as now-playing or as the request target directly from the list, using the mouse or the keyboard.
+The system SHALL let the user set a suggestion as now-playing directly from the list, by double-clicking it or with the keyboard. The list SHALL NOT offer to make a suggestion the request target: a listed track is already one compatible step away, so requests are chosen from the search (request-routing).
 
 #### Scenario: Set suggestion as now-playing via keyboard
 - **WHEN** the user selects a suggestion with the keyboard and triggers "set as now-playing"
 - **THEN** that track becomes now-playing
+
+#### Scenario: Set suggestion as now-playing by double-clicking
+- **WHEN** the user double-clicks a suggestion
+- **THEN** that track becomes now-playing, and no text in the row is selected
