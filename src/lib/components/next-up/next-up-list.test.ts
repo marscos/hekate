@@ -22,7 +22,6 @@ function props(overrides: Record<string, unknown> = {}) {
     onSort: vi.fn(),
     onSelect: vi.fn(),
     onNowPlaying: vi.fn(),
-    onRequest: vi.fn(),
     onWiden: vi.fn(),
     ...overrides,
   };
@@ -69,10 +68,26 @@ describe("NextUpList", () => {
     const list = screen.getByRole("listbox", { name: "Next up" });
     await fireEvent.keyDown(list, { key: "Enter" });
     expect(p.onNowPlaying).toHaveBeenCalledWith(2);
-    await fireEvent.keyDown(list, { key: "r" });
-    expect(p.onRequest).toHaveBeenCalledWith(2);
     await fireEvent.keyDown(list, { key: "ArrowDown" });
     expect(p.onSelect).toHaveBeenCalled();
+  });
+
+  it("sets now-playing on double-click without selecting the row's text", async () => {
+    const p = props();
+    render(NextUpList, p);
+    const row = screen.getAllByTestId("suggestion").find((r) => r.dataset.trackId === "2")!;
+    await fireEvent.dblClick(row);
+    expect(p.onNowPlaying).toHaveBeenCalledWith(2);
+    expect(row.className).toContain("select-none");
+  });
+
+  it("offers no request action: requests come from the search", async () => {
+    const p = props({ selectedId: 2 });
+    render(NextUpList, p);
+    expect(screen.queryByRole("button", { name: "Request" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Now" })).toBeNull();
+    await fireEvent.keyDown(screen.getByRole("listbox", { name: "Next up" }), { key: "r" });
+    expect(p.onNowPlaying).not.toHaveBeenCalled();
   });
 
   it("requests a different sort", async () => {

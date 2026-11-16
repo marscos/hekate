@@ -113,7 +113,6 @@
           onSort={(sort) => (session.sort = sort)}
           onSelect={(id) => (session.selectedId = id)}
           onNowPlaying={(id) => session.setNowPlaying(id)}
-          onRequest={(id) => session.setRequest(id)}
           onWiden={() => session.setTolerance(Math.min(0.1, session.tolerance + 0.02))}
         />
       </Card.Content>

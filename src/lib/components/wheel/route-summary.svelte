@@ -28,8 +28,7 @@
 
   {#if !request}
     <p class="text-muted-foreground">
-      Someone asked for a song? Search for it here, or press <kbd class="rounded border px-1 text-xs">R</kbd> on a suggestion. hekate plans the
-      shortest smooth route to it.
+      Someone asked for a song? Search for it here, and hekate plans the shortest smooth route to it.
     </p>
   {:else}
     <div class="flex items-start gap-2">

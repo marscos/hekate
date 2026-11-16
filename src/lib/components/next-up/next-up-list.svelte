@@ -1,6 +1,7 @@
 <script lang="ts">
   // Ranked compatible next tracks (spec: next-track-suggestions).
-  // Keyboard: ↑/↓ select, Enter sets now-playing, R sets the request target.
+  // ↑/↓ select; Enter or a double-click sets now-playing. Requests are made
+  // from the search, not here: a listed track is already one step away.
   import { Badge } from "$lib/components/ui/badge";
   import { Button } from "$lib/components/ui/button";
   import { MOVE_LABEL } from "$lib/engine/camelot";
@@ -21,11 +22,9 @@
     onSort: (sort: SuggestionSort) => void;
     onSelect: (id: number | null) => void;
     onNowPlaying: (id: number) => void;
-    onRequest: (id: number) => void;
     onWiden: () => void;
   }
-  let { suggestions, tracksById, hasCurrent, tolerance, sort, selectedId, onSort, onSelect, onNowPlaying, onRequest, onWiden }: Props =
-    $props();
+  let { suggestions, tracksById, hasCurrent, tolerance, sort, selectedId, onSort, onSelect, onNowPlaying, onWiden }: Props = $props();
 
   let body = $state<HTMLElement | null>(null);
 
@@ -46,8 +45,6 @@
       move(e.key === "ArrowDown" ? 1 : -1);
     } else if (e.key === "Enter" && selectedId !== null) {
       onNowPlaying(selectedId);
-    } else if ((e.key === "r" || e.key === "R") && selectedId !== null) {
-      onRequest(selectedId);
     }
   }
 
@@ -66,7 +63,7 @@
         {b.label}
       </Button>
     {/each}
-    <span class="ml-auto text-muted-foreground">↑↓ select · Enter: now-playing · R: request</span>
+    <span class="ml-auto text-muted-foreground">↑↓ select · Enter or double-click: now-playing</span>
   </div>
 
   {#if !hasCurrent}
@@ -98,7 +95,6 @@
             <th>Mood</th>
             <th class="text-right!">Risk</th>
             <th class="w-full">Track</th>
-            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -110,7 +106,7 @@
                 data-testid="suggestion"
                 role="option"
                 aria-selected={selectedId === s.to}
-                class="cursor-pointer border-t [&>td]:px-2 [&>td]:py-1.5 {selectedId === s.to ? 'bg-accent' : 'hover:bg-accent/50'} {s.playedTonight
+                class="cursor-pointer border-t select-none [&>td]:px-2 [&>td]:py-1.5 {selectedId === s.to ? 'bg-accent' : 'hover:bg-accent/50'} {s.playedTonight
                   ? 'opacity-45'
                   : ''}"
                 onclick={() => onSelect(s.to)}
@@ -134,10 +130,6 @@
                   {t.artist ? `${t.artist} – ` : ""}{t.title}
                   {#if s.label}<Badge variant="outline" class="ml-2">{s.label}</Badge>{/if}
                   {#if s.playedTonight}<span class="ml-2 text-xs text-muted-foreground">played</span>{/if}
-                </td>
-                <td class="whitespace-nowrap">
-                  <Button size="xs" variant="ghost" onclick={(e: MouseEvent) => (e.stopPropagation(), onNowPlaying(s.to))}>Now</Button>
-                  <Button size="xs" variant="ghost" onclick={(e: MouseEvent) => (e.stopPropagation(), onRequest(s.to))}>Request</Button>
                 </td>
               </tr>
             {/if}
