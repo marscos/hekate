@@ -101,3 +101,41 @@ The system SHALL assume keylock is on, so a track's key does not change with tem
 #### Scenario: Large tempo difference within tolerance
 - **WHEN** a candidate would need to be pitched by 5% to match tempo
 - **THEN** its key for compatibility purposes is still its analysed key
+
+### Requirement: Responsive tolerance control
+While the user drags the BPM tolerance control, the control and its displayed value SHALL follow the pointer without lagging behind it. Suggestions and the compass SHALL keep updating during the drag using the most recent value, skipping intermediate values rather than processing every step in turn. A route to a request SHALL keep its previous tolerance until the drag ends.
+
+#### Scenario: Track stays put as the value changes
+- **WHEN** the displayed tolerance changes from ±5% to ±5.5%
+- **THEN** the slider track keeps its position and length, so the thumb stays under the pointer
+
+#### Scenario: Dragging across the range
+- **WHEN** the user drags the tolerance control from ±6% to ±10% in one continuous motion
+- **THEN** the control and the displayed tolerance move with the pointer through the intermediate values, without jumping in bursts
+
+#### Scenario: Views follow the drag
+- **WHEN** the user pauses mid-drag at ±8%
+- **THEN** suggestions and the compass reflect ±8%
+
+#### Scenario: Route waits for the release
+- **WHEN** a request is set and the user drags the tolerance from ±6% to ±8% without releasing it
+- **THEN** the route and its "no route" message still use ±6%, and they switch to ±8% when the user releases the control
+
+#### Scenario: Release settles on the final value
+- **WHEN** the user releases the control at ±9.5%
+- **THEN** suggestions, the compass and any route use ±9.5%, whatever intermediate values were skipped
+
+#### Scenario: Single step
+- **WHEN** the user changes the tolerance by one step with a click or an arrow key
+- **THEN** suggestions, the compass and any route update to the new value straight away
+
+### Requirement: Tolerance is remembered once chosen
+The system SHALL save the BPM tolerance when the user finishes changing it, and restore it on the next launch. Intermediate values passed while dragging SHALL NOT be saved.
+
+#### Scenario: Value kept after a drag
+- **WHEN** the user drags the tolerance to ±4%, releases it and restarts the app
+- **THEN** the tolerance is ±4%
+
+#### Scenario: Value kept after a single step
+- **WHEN** the user changes the tolerance from ±6% to ±6.5% with an arrow key and restarts the app
+- **THEN** the tolerance is ±6.5%

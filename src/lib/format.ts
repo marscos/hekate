@@ -21,9 +21,12 @@ export function formatMinutes(seconds: number) {
 
 export const trackName = (t: Track) => (t.artist ? `${t.artist} – ${t.title}` : t.title);
 
+/** Where the moderate and bold risk bands start. */
+export const RISK_BAND_START = { moderate: 0.35, bold: 0.7 } as const;
+
 /** Risk bands for colour: safe, moderate, bold. */
 export function riskBand(risk: number): "safe" | "moderate" | "bold" {
-  return risk < 0.35 ? "safe" : risk < 0.7 ? "moderate" : "bold";
+  return risk < RISK_BAND_START.moderate ? "safe" : risk < RISK_BAND_START.bold ? "moderate" : "bold";
 }
 
 /** Case-insensitive match on every word of `query` against artist and title. */

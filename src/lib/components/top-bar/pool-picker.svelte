@@ -21,8 +21,9 @@
 <Popover.Root>
   <Popover.Trigger>
     {#snippet child({ props })}
-      <Button {...props} variant="outline" size="sm" data-testid="pool-picker">
-        <Library />{label}<span class="text-muted-foreground tabular-nums">· {pool.ids.size}</span>
+      <!-- Fixed width, so a longer crate name doesn't shift the rest of the top bar. -->
+      <Button {...props} variant="outline" size="sm" class="w-48 justify-start" title={label} data-testid="pool-picker">
+        <Library /><span class="min-w-0 truncate">{label}</span><span class="shrink-0 text-muted-foreground tabular-nums">· {pool.ids.size}</span>
       </Button>
     {/snippet}
   </Popover.Trigger>
