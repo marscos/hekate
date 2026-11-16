@@ -14,9 +14,7 @@ The compass identifies tracks only by text, which is slow to scan in a dark boot
 - No explanation is shown before these prompts, and hekate never asks for Full Disk Access.
 - macOS remembers each answer for the installed build, so these prompts appear once after installing each version (hekate is ad-hoc signed, so every update is a new app to macOS). This was measured on a bundled build and is accepted.
 
-Not decided yet: whether this change also covers the library's own "access data from other apps" prompt, which users of Mixxx from mixxx.org get on every launch (design Open Questions).
-
-Out of scope: covers on the compass candidate nodes, the wheel map, the next-up list or the top bar; an in-app hint after a denied prompt; choosing or editing covers; fetching covers from the internet.
+Out of scope: the library's own "access data from other apps" prompt, which users of Mixxx from mixxx.org get on every launch (a change of its own); covers on the compass candidate nodes, the wheel map, the next-up list or the top bar; an in-app hint after a denied prompt; choosing or editing covers; fetching covers from the internet.
 
 ## Capabilities
 

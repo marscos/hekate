@@ -88,6 +88,7 @@ Zones are checked one after another, so macOS shows at most one prompt at a time
   - Installing a newer build over it the same way: every prompt came back.
   - Documents, network volumes and iCloud Drive weren't tested, and how to reset iCloud Drive's answer wasn't pursued: the maintainer doesn't use it.
 - **Windows and Linux**: no check. Covers load on demand.
+- **Not covered here**: the library's own "access data from other apps" prompt, which macOS shows on every launch to users of Mixxx from mixxx.org. It gets a change of its own (task 1.4).
 
 ### D7. Dev mode
 `mock-ipc.ts` gives synthetic tracks a `coverColor` and a `coverDigest` (most tracks, not all), and answers `track_cover` with a generated SVG data URI in the track's colour after a short delay. This exercises the placeholder-then-image path in `pnpm dev`.
@@ -106,5 +107,4 @@ Zones are checked one after another, so macOS shows at most one prompt at a time
 
 ## Open Questions
 
-- **The library's data-access prompt.** Users of Mixxx from mixxx.org get it on every launch. Should this change, as the home of hekate's permission strategy, also cover it, or should it be a change of its own (task 1.4)?
 - **A hint after a denied prompt** ("Covers unavailable: allow access in System Settings › Privacy & Security › Files and Folders") is out of scope here. Task 1.1 showed that changing the answer there works, so a hint could point to it. It can be added later without changing the pipeline.
