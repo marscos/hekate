@@ -1,6 +1,6 @@
 [package]
 name = "hekate"
-version = "0.1.0"
+version = "0.2.0"
 description = "Live harmonic next-track assistant for Mixxx"
 authors = ["you"]
 edition = "2024"
