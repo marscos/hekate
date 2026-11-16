@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Glossary from "$lib/components/glossary/glossary.svelte";
   import LibraryStatus from "$lib/components/library/library-status.svelte";
   import { Label } from "$lib/components/ui/label";
   import { Slider } from "$lib/components/ui/slider";
@@ -85,4 +86,5 @@
 
   <PoolPicker pool={session.pool} crates={session.library.library?.crates ?? []} />
   <LibraryStatus library={session.library} />
+  <Glossary />
 </header>

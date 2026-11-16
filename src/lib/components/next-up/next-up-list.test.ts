@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/svelte";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, screen } from "@testing-library/svelte";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { description, renderWithTooltips } from "$lib/components/glossary/test-utils";
+import { MOVE_INFO } from "$lib/engine/camelot";
 import { rankSuggestions } from "$lib/engine/ranking";
 import { track } from "$lib/engine/test-tracks";
 import { transitionsFrom } from "$lib/engine/transition";
@@ -28,11 +30,13 @@ function props(overrides: Record<string, unknown> = {}) {
   };
 }
 
+beforeEach(() => vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }));
+
 const rowIds = () => screen.getAllByTestId("suggestion").map((r) => Number(r.dataset.trackId));
 
 describe("NextUpList", () => {
   it("shows suggestions best first with their details", () => {
-    render(NextUpList, props());
+    renderWithTooltips(NextUpList, props());
     // Same key and no BPM gap is best; the semitone move is riskiest.
     expect(rowIds()[0]).toBe(3);
     const row = screen.getAllByTestId("suggestion").find((r) => r.dataset.trackId === "2")!;
@@ -44,20 +48,28 @@ describe("NextUpList", () => {
     expect(screen.getAllByTestId("suggestion").find((r) => r.dataset.trackId === "4")!.textContent).toContain("semitone lift");
   });
 
+  it("keeps the move name and explains it", () => {
+    renderWithTooltips(NextUpList, props());
+    const row = screen.getAllByTestId("suggestion").find((r) => r.dataset.trackId === "5")!;
+    const label = row.querySelector("[data-testid=move-label]")!;
+    expect(label.textContent).toBe("relative");
+    expect(description(label)).toBe(`${MOVE_INFO.relative.meaning} 7 of 7 notes shared.`);
+  });
+
   it("puts played tracks last and dims them", () => {
-    render(NextUpList, props({ played: new Set([3]) }));
+    renderWithTooltips(NextUpList, props({ played: new Set([3]) }));
     expect(rowIds().at(-1)).toBe(3);
     expect(screen.getAllByTestId("suggestion").at(-1)!.className).toContain("opacity-45");
   });
 
   it("asks for a now-playing track when there is none", () => {
-    render(NextUpList, props({ hasCurrent: false, suggestions: [] }));
+    renderWithTooltips(NextUpList, props({ hasCurrent: false, suggestions: [] }));
     expect(screen.getByTestId("next-up-empty").textContent).toContain("Set a now-playing track");
   });
 
   it("offers to widen the tolerance when nothing is compatible", async () => {
     const p = props({ suggestions: [] });
-    render(NextUpList, p);
+    renderWithTooltips(NextUpList, p);
     expect(screen.getByTestId("next-up-empty").textContent).toContain("No compatible tracks in the pool at ±6% BPM");
     await fireEvent.click(screen.getByRole("button", { name: "Widen tolerance" }));
     expect(p.onWiden).toHaveBeenCalled();
@@ -65,7 +77,7 @@ describe("NextUpList", () => {
 
   it("acts on the selected suggestion from the keyboard", async () => {
     const p = props({ selectedId: 2 });
-    render(NextUpList, p);
+    renderWithTooltips(NextUpList, p);
     const list = screen.getByRole("listbox", { name: "Next up" });
     await fireEvent.keyDown(list, { key: "Enter" });
     expect(p.onNowPlaying).toHaveBeenCalledWith(2);
@@ -77,7 +89,7 @@ describe("NextUpList", () => {
 
   it("requests a different sort", async () => {
     const p = props();
-    render(NextUpList, p);
+    renderWithTooltips(NextUpList, p);
     await fireEvent.click(screen.getByRole("button", { name: "BPM gap" }));
     expect(p.onSort).toHaveBeenCalledWith("bpm");
   });
